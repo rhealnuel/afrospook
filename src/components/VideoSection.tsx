@@ -12,7 +12,7 @@ export default function VideoSection() {
           className="rounded-lg w-full max-w-3xl shadow-lg"
           poster="/poster.jpg" // Optional: Add a poster image
         >
-          <source src="/afro-video.mp4" type="video/mp4" />
+          <source src="/afro.mp4" type="video/mp4" />
           Your browser does not support the video tag.
         </video>
       </div>

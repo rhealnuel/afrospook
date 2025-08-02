@@ -1,6 +1,7 @@
 "use client"
 import React, { useState } from 'react';
 import { Calendar, MapPin, Clock, Users, Star, Play, ChevronRight, Ticket, Shield, CreditCard } from 'lucide-react';
+import PaymentModal from '@/components/monifyForm';
 
 const VideoSection = () => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -46,6 +47,12 @@ const VideoSection = () => {
 };
 const TicketList = () => {
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
+const [showModal, setShowModal] = useState(false);
+
+const handleSelect = (ticket: any) => {
+  setSelectedTicket(ticket);
+  setShowModal(true);
+};
 
   const tickets = [
     {
@@ -133,7 +140,7 @@ const TicketList = () => {
                 </div>
 
                 <button 
-                  onClick={() => setSelectedTicket(ticket.id)}
+                  onClick={() => handleSelect(ticket)}
                   className={`w-full py-4 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center space-x-2 ${
                     selectedTicket === ticket.id 
                       ? `bg-gradient-to-r ${ticket.color} text-white shadow-lg transform scale-95` 
@@ -144,13 +151,19 @@ const TicketList = () => {
                   <span>Select Ticket</span>
                   <ChevronRight className="w-4 h-4" />
                 </button>
+
+                <PaymentModal
+                  isOpen={showModal}
+                  onClose={() => setShowModal(false)}
+                  ticket={selectedTicket}
+                />
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      {selectedTicket && (
+      {/* {selectedTicket && (
         <div className="max-w-2xl mx-auto mt-12 bg-gray-50 p-8 rounded-2xl shadow-lg border border-gray-200">
           <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">Secure Your Spot</h3>
           
@@ -185,7 +198,7 @@ const TicketList = () => {
             Complete Purchase - ${tickets.find(t => t.id === selectedTicket)?.price}
           </button>
         </div>
-      )}
+      )} */}
     </section>
   );
 };

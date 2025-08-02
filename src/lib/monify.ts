@@ -37,7 +37,7 @@ export const triggerMonnifyPayment = ({
     customerEmail,
     customerPhoneNumber: customerPhone,
     apiKey: process.env.NEXT_PUBLIC_MONNIFY_API_KEY!,
-    contractCode: process.env.NEXT_PUBLIC_MONNIFY_CONTRACT_CODE!,
+    contractCode: process.env.NEXT_PUBLIC_MONNIFY_CONTRACT_CODE || "0842442340",
     paymentDescription: "Ticket Payment",
     isTestMode: true,
     onComplete,

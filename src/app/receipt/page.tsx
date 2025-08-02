@@ -6,7 +6,13 @@ import {
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
-export default function SuccessPage() {
+// app/receipt/page.tsx
+import { Suspense } from "react";
+
+
+
+
+function SuccessPage() {
   const params = useSearchParams();
   const [show, setShow] = useState(false);
 
@@ -95,5 +101,14 @@ function InfoRow({ label, value }: { label: string; value: string }) {
       <span className="font-medium">{label}:</span>
       <span className="font-mono">{value}</span>
     </div>
+  );
+}
+
+
+export default function ReceiptPage() {
+  return (
+    <Suspense fallback={<div className="text-center py-12">Loading receipt...</div>}>
+      <SuccessPage />
+    </Suspense>
   );
 }

@@ -1,369 +1,448 @@
-"use client"
-import React, { useState } from 'react';
-import { Calendar, MapPin, Clock, Users, Star, Play, ChevronRight, Ticket, Shield, CreditCard } from 'lucide-react';
-import PaymentModal from '@/components/monifyForm';
+"use client";
+import React, { useMemo, useState } from "react";
+import Image from "next/image";
+import {
+  Calendar,
+  MapPin,
+  Clock,
+  Users,
+  Star,
+  ChevronRight,
+  Ticket,
+  ChevronDown,
+} from "lucide-react";
+import { motion } from "framer-motion";
+import PaymentModal from "@/components/monifyForm";
 
-const VideoSection = () => {
-  const [isPlaying, setIsPlaying] = useState(false);
+/** ============== BRAND ============== */
+const ORANGE = "#FF3B00";
+const LIME = "#B6FF00";
+const BLACK = "#0A0A0A";
+
+type TicketType = {
+  id: number;
+  name: string;
+  price: number;
+  description?: string;
+  features: string[];
+  popular?: boolean;
+  grad: string;
+  seats: number
+};
+
+const TICKETS: TicketType[] = [
+  // {
+  //   id: 1,
+  //   name: "Early Birds",
+  //   price: 5000,
+  //   description: "Special discounted entry for early buyers.",
+  //   features: ["General Admission"],
+  //   grad: "from-[#FF3B00] to-[#B6FF00]",
+  // },
+  {
+    id: 2,
+    name: "Standard",
+    price: 7000,
+    description: "Full event access.",
+    features: ["General Admission", "Event Program"],
+    grad: "from-[#B6FF00] to-black",
+    seats:1
+  },
+  {
+    id: 3,
+    name: "VIP",
+    price: 20000,
+    description: "Front row + a cup of cocktail.",
+    features: [
+      "Front Row Seating",
+      "Complimentary Cocktail",
+      "VIP Lounge Access",
+    ],
+    popular: true,
+    grad: "from-black to-[#FF3B00]",
+    seats:1
+  },
+  {
+    id: 4,
+    name: "Couple",
+    price: 12000,
+    description: "Special offer for 2 attendees.",
+    features: ["2 General Admission Tickets", "Shared Experience"],
+    grad: "from-[#FF3B00] to-black",
+    seats:2
+  },
+  {
+    id: 5,
+    name: "Group of 4",
+    price: 20000,
+    description: "Bring the whole squad!",
+    features: ["4 General Admission Tickets"],
+    grad: "from-[#B6FF00] to-[#FF3B00]",
+        seats:4
+  },
+];
+
+const textOnGrad = (grad: string) => (grad.includes("black") ? "text-white" : "text-black");
+
+/** ============== MICRO COMPONENTS ============== */
+
+type NeonButtonProps = {
+  gradient?: string;
+  invertText?: boolean;
+  href?: string;
+  className?: string;
+  children: React.ReactNode;
+  onClick?: () => void;
+};
+const NeonButton: React.FC<
+  { gradient?: string; invertText?: boolean; href?: string } & React.ButtonHTMLAttributes<HTMLButtonElement>
+> = ({ children, gradient = "from-[#FF3B00] to-[#B6FF00]", invertText = false, href, className = "", ...props }) => {
+  const base = `relative inline-flex items-center gap-3 rounded-xl bg-gradient-to-r ${gradient} px-5 py-3 font-semibold shadow-[0_8px_30px_rgba(255,59,0,0.25)] transition will-change-transform hover:opacity-95 active:scale-[0.98] ${invertText ? "text-white" : "text-black"} ${className}`;
+  return href ? (
+    <a href={href} className={base}>
+      {children}
+    </a>
+  ) : (
+    <button {...props} className={base}>
+      {children}
+    </button>
+  );
+};
+
+const GlowCard: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = "" }) => (
+  <div className={`relative overflow-hidden rounded-3xl border border-white/10 bg-neutral-950/70 shadow-2xl ${className}`}>
+    <div
+      className="pointer-events-none absolute -inset-1 rounded-[28px] blur-2xl opacity-35"
+      style={{
+        background:
+          "conic-gradient(from 140deg, rgba(255,59,0,0.30), rgba(182,255,0,0.22), transparent 60%)",
+      }}
+    />
+    <div className="relative">{children}</div>
+  </div>
+);
+
+const MarqueeBand: React.FC = () => (
+  <div className="relative border-y border-white/10 bg-black/60">
+    <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[length:12px_100%]" />
+    <div className="relative overflow-hidden">
+      <motion.div
+        className="flex whitespace-nowrap py-3 text-sm font-medium tracking-wide"
+        initial={{ x: 0 }}
+        animate={{ x: "-50%" }}
+        transition={{ repeat: Infinity, duration: 20, ease: "linear" }}
+      >
+        {Array.from({ length: 2 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-8 pr-8">
+            <span className="text-white">AFROSPOOK 2025</span>
+            <span className="text-lime-300">LAGOS CULTURAL CENTER</span>
+            <span className="text-white">MARCH 15–16</span>
+            <span className="text-orange-400">6PM – 2AM DAILY</span>
+            <span className="text-white">MUSIC • ART • CULTURE • FOOD</span>
+          </div>
+        ))}
+      </motion.div>
+    </div>
+  </div>
+);
+
+const FloatingOrbs = () => (
+  <div aria-hidden className="pointer-events-none absolute inset-0">
+    <motion.div
+      className="absolute -top-24 -left-24 h-96 w-96 rounded-full"
+      style={{ background: "radial-gradient(circle, rgba(255,59,0,0.20) 0%, transparent 60%)" }}
+      animate={{ y: [0, 22, 0], x: [0, 12, 0] }}
+      transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+    />
+    <motion.div
+      className="absolute -bottom-24 -right-16 h-[28rem] w-[28rem] rounded-full"
+      style={{ background: "radial-gradient(circle, rgba(182,255,0,0.16) 0%, transparent 60%)" }}
+      animate={{ y: [0, -18, 0], x: [0, -10, 0] }}
+      transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+    />
+  </div>
+);
+
+/** ============== HEADER ============== */
+
+function Header() {
+  return (
+    <header className="relative overflow-hidden bg-black text-white">
+      <FloatingOrbs />
+      {/* fine grid */}
+      <div className="pointer-events-none absolute inset-0 opacity-[0.06]">
+        <svg className="h-full w-full" viewBox="0 0 800 600" fill="none">
+          <defs>
+            <pattern id="grid" x="0" y="0" width="48" height="48" patternUnits="userSpaceOnUse">
+              <path d="M0 24 H48 M24 0 V48" stroke="currentColor" strokeWidth="0.5" />
+              <circle cx="24" cy="24" r="1.5" fill="currentColor" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#grid)" />
+        </svg>
+      </div>
+
+      {/* nav */}
+      <div className="relative z-10 mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
+        <div className="flex items-center gap-3">
+          <div className="relative h-10 w-22">
+            <Image src="/afrospook-logo.png" alt="AfroSpook" fill className="object-contain" priority />
+          </div>
+          {/* <span className="font-heading text-xl tracking-wide">AfroSpook</span> */}
+        </div>
+
+        <NeonButton href="#tickets">
+          Get Tickets
+          <ChevronRight className="h-4 w-4" />
+        </NeonButton>
+      </div>
+
+      {/* split hero */}
+      <div className="relative z-10 mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 px-6 pb-12 pt-6 md:grid-cols-2">
+        <motion.div initial={{ y: 18, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.6 }}>
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-neutral-300">
+            March 15–16, 2025 • Lagos Cultural Center
+          </div>
+
+          <h1 className="font-heading bg-gradient-to-b from-white to-neutral-300 bg-clip-text py-3 text-5xl font-bold tracking-tight text-transparent md:text-6xl">
+            AfroSpook 2025
+          </h1>
+
+          <p className="font-body max-w-xl text-neutral-300">
+            An elevated celebration of African culture — electric color, bold rhythm, and unforgettable nights.
+          </p>
+
+          <div className="mt-7 flex flex-wrap gap-4">
+            <NeonButton href="#tickets">
+              Explore Tickets <Ticket className="h-5 w-5" />
+            </NeonButton>
+            <a
+              href="#program"
+              className="inline-flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-white backdrop-blur transition hover:border-[#FF3B00]"
+            >
+              View Program
+            </a>
+          </div>
+
+          {/* facts */}
+          <div className="mt-8 grid max-w-md grid-cols-3 gap-3 max-[420px]:grid-cols-1">
+            <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-4 py-3">
+              <Calendar className="h-5 w-5" style={{ color: ORANGE }} />
+              <div>
+                <p className="text-xs text-neutral-400">Dates</p>
+                <p className="text-sm font-medium">Mar 15–16</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-4 py-3">
+              <MapPin className="h-5 w-5" style={{ color: LIME }} />
+              <div>
+                <p className="text-xs text-neutral-400">Venue</p>
+                <p className="text-sm font-medium">Lagos Center</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-4 py-3">
+              <Clock className="h-5 w-5" style={{ color: ORANGE }} />
+              <div>
+                <p className="text-xs text-neutral-400">Time</p>
+                <p className="text-sm font-medium">6PM – 2AM</p>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        <motion.div
+          className="relative mx-auto w-full max-w-[560px]"
+          initial={{ y: 18, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+        >
+          <GlowCard>
+            <div className="relative aspect-[4/3]">
+              <Image src="/afrospook-logo.png" alt="AfroSpook Logo" fill className="object-contain p-6" priority />
+            </div>
+          </GlowCard>
+        </motion.div>
+      </div>
+
+      <MarqueeBand />
+    </header>
+  );
+}
+
+/** ============== FEATURES ============== */
+function FeatureGrid() {
+  const items = useMemo(
+    () => [
+      { title: "Live Performances", desc: "Traditional & contemporary African sound." },
+      { title: "Art Installations", desc: "Graphic, modern, immersive." },
+      { title: "Cultural Workshops", desc: "Hands-on creative sessions." },
+      { title: "Culinary Journey", desc: "Bold flavors across Africa." },
+    ],
+    []
+  );
 
   return (
-    <section className="relative mb-20">
-      <div className="relative h-96 bg-gradient-to-r from-amber-900 via-orange-800 to-red-900 rounded-2xl overflow-hidden shadow-2xl">
-        <div className="absolute inset-0 bg-black/40 bg-opacity-40"></div>
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
-        
-        {/* Geometric African Pattern Overlay */}
-        <div className="absolute inset-0 opacity-10">
-          <svg className="w-full h-full" viewBox="0 0 400 400" fill="none">
-            <pattern id="african-pattern" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M20 0L40 20L20 40L0 20Z" fill="currentColor"/>
-              <circle cx="20" cy="20" r="8" fill="none" stroke="currentColor" strokeWidth="2"/>
-            </pattern>
-            <rect width="400" height="400" fill="url(#african-pattern)"/>
-          </svg>
-        </div>
+    <section id="program" className="mb-20">
+      <div className="mb-10 text-center">
+        <h2 className="font-heading text-3xl font-bold text-white">Cultural Showcase</h2>
+        <p className="font-body mx-auto mt-2 max-w-2xl text-sm text-neutral-300">
+          Authentic performances, installations, and cuisine — curated with taste.
+        </p>
+      </div>
 
-        <div className="relative z-10 h-full flex items-center justify-center">
-          <button 
-            onClick={() => setIsPlaying(!isPlaying)}
-            className="group flex items-center space-x-4 bg-white/20 bg-opacity-20 backdrop-blur-sm hover:bg-opacity-30 transition-all duration-300 rounded-full px-8 py-4 border border-white border-opacity-30"
+      <div className="grid gap-6 md:grid-cols-4">
+        {items.map((item, i) => (
+          <motion.article
+            key={i}
+            className="group overflow-hidden rounded-3xl border border-white/10 bg-neutral-950/80 p-6 shadow-2xl transition"
+            whileHover={{ y: -4 }}
           >
-            <div className="w-16 h-16 bg-amber-500 rounded-full flex items-center justify-center group-hover:bg-amber-400 transition-colors duration-300 shadow-lg">
-              <Play className="w-6 h-6 text-white ml-1" fill="currentColor" />
-            </div>
-            <div className="text-left">
-              <p className="text-white font-semibold text-lg">Watch Trailer</p>
-              <p className="text-amber-200 text-sm">Experience the Energy</p>
-            </div>
-          </button>
-        </div>
-
-        {/* Decorative Elements */}
-        <div className="absolute top-6 left-6 w-20 h-20 border-2 border-amber-400 rounded-full opacity-30"></div>
-        <div className="absolute bottom-6 right-6 w-32 h-32 border-2 border-red-400 rounded-full opacity-20"></div>
+            <div className="h-1 w-full bg-gradient-to-r from-[#FF3B00] to-[#B6FF00]" />
+            <h3 className="mt-4 font-heading text-lg text-white group-hover:text-neutral-100">{item.title}</h3>
+            <p className="font-body mt-1 text-sm text-neutral-400">{item.desc}</p>
+          </motion.article>
+        ))}
       </div>
     </section>
   );
-};
-const TicketList = () => {
-  const [selectedTicket, setSelectedTicket] = useState<any>(null);
-const [showModal, setShowModal] = useState(false);
+}
 
-const handleSelect = (ticket: any) => {
-  setSelectedTicket(ticket);
-  setShowModal(true);
-};
+/** ============== TICKETS ============== */
+function TicketList() {
+  const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
+  const [showModal, setShowModal] = useState(false);
 
-  const tickets = [
-    {
-      id: 1,
-      name: "Early Bird",
-      price: 75,
-      originalPrice: 100,
-      description: "Limited time offer - Save 25%",
-      features: ["General Admission", "Welcome Drink", "Event Program", "Exclusive Merchandise"],
-      available: 150,
-      popular: false,
-      color: "from-amber-500 to-orange-600"
-    },
-    {
-      id: 2,
-      name: "VIP Experience",
-      price: 200,
-      originalPrice: null,
-      description: "Premium access with exclusive perks",
-      features: ["VIP Seating Area", "Meet & Greet Access", "Premium Bar Access", "Gourmet Catering", "VIP Parking", "Souvenir Package"],
-      available: 75,
-      popular: true,
-      color: "from-red-600 to-pink-600"
-    },
-    {
-      id: 3,
-      name: "Cultural Immersion",
-      price: 350,
-      originalPrice: null,
-      description: "Ultimate AfroSpook experience",
-      features: ["All VIP Benefits", "Private Lounge Access", "Personal Concierge", "Artist Workshop Access", "Premium Gift Bag", "Photography Session"],
-      available: 25,
-      popular: false,
-      color: "from-purple-600 to-indigo-700"
-    }
-  ];
+  const handleSelect = (ticket: TicketType) => {
+    setSelectedTicket(ticket);
+    setShowModal(true);
+  };
 
   return (
-    <section className="mb-20">
-      <div className="text-center mb-12">
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">Choose Your Experience</h2>
-        <p className="text-gray-600 max-w-2xl mx-auto">Select the perfect ticket that matches your desired level of cultural immersion and celebration.</p>
-      </div>
+    <section id="tickets" className="px-6 py-14 bg-[#0A0A0A] text-white">
+      <h2 className="text-3xl font-bold text-center mb-8">Choose Your Experience</h2>
 
-      <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-        {tickets.map((ticket) => (
-          <div key={ticket.id} className={`relative group transform hover:scale-105 transition-all duration-300 ${ticket.popular ? 'scale-105' : ''}`}>
+      <div className="grid gap-8 md:grid-cols-3 max-w-6xl mx-auto">
+        {TICKETS.map((ticket) => (
+          <div
+            key={ticket.id}
+            className={`relative rounded-2xl overflow-hidden border border-white/10 shadow-lg transition-all hover:scale-105 ${
+              ticket.popular ? "ring-2 ring-[#FF3B00]" : ""
+            }`}
+          >
             {ticket.popular && (
-              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-20">
-                <div className="bg-gradient-to-r from-amber-400 to-orange-500 text-white px-6 py-2 rounded-full text-sm font-semibold shadow-lg flex items-center space-x-2">
-                  <Star className="w-4 h-4 fill-current" />
-                  <span>Most Popular</span>
-                </div>
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#FF3B00] to-[#B6FF00] text-black text-xs font-semibold px-4 py-1 rounded-full shadow-lg">
+                <Star className="inline h-3 w-3 mr-1" /> Most Popular
               </div>
             )}
-            
-            <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 hover:shadow-2xl transition-shadow duration-300">
-              <div className={`h-2 bg-gradient-to-r ${ticket.color}`}></div>
-              
-              <div className="p-8">
-                <div className="text-center mb-6">
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">{ticket.name}</h3>
-                  <p className="text-gray-600 text-sm mb-4">{ticket.description}</p>
-                  
-                  <div className="flex items-center justify-center space-x-2 mb-2">
-                    {ticket.originalPrice && (
-                      <span className="text-2xl text-gray-400 line-through">N{ticket.originalPrice}</span>
-                    )}
-                    <span className="text-4xl font-bold text-gray-900">N{ticket.price}</span>
-                  </div>
-                  
-                  <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
-                    <Users className="w-4 h-4" />
-                    <span>{ticket.available} tickets remaining</span>
-                  </div>
-                </div>
-
-                <div className="space-y-3 mb-8">
-                  {ticket.features.map((feature, index) => (
-                    <div key={index} className="flex items-center space-x-3">
-                      <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${ticket.color}`}></div>
-                      <span className="text-gray-700 text-sm">{feature}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <button 
-                  onClick={() => handleSelect(ticket)}
-                  className={`w-full py-4 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center space-x-2 ${
-                    selectedTicket === ticket.id 
-                      ? `bg-gradient-to-r ${ticket.color} text-white shadow-lg transform scale-95` 
-                      : `bg-gradient-to-r ${ticket.color} hover:shadow-lg text-white hover:transform hover:scale-105`
-                  }`}
-                >
-                  <Ticket className="w-5 h-5" />
-                  <span>Select Ticket</span>
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-
-                <PaymentModal
-                  isOpen={showModal}
-                  onClose={() => setShowModal(false)}
-                  ticket={selectedTicket}
-                />
-              </div>
+            <div className={`h-1 w-full bg-gradient-to-r ${ticket.grad}`} />
+            <div className="p-6">
+              <h3 className="text-xl font-bold">{ticket.name}</h3>
+              {ticket.description && (
+                <p className="text-neutral-400 mt-1">{ticket.description}</p>
+              )}
+              <p className="text-3xl font-bold mt-4">₦{ticket.price.toLocaleString()}</p>
+              <ul className="mt-4 space-y-2 text-sm text-neutral-300">
+                {ticket.features.map((f, idx) => (
+                  <li key={idx} className="flex items-center gap-2">
+                    <span className={`h-1.5 w-1.5 rounded-full bg-gradient-to-r ${ticket.grad}`} />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <NeonButton
+                gradient={ticket.grad}
+                invertText={ticket.grad.includes("black")}
+                onClick={() => handleSelect(ticket)}
+                className="mt-6 w-full justify-center"
+              >
+                Select Ticket
+              </NeonButton>
             </div>
           </div>
         ))}
       </div>
 
-      {/* {selectedTicket && (
-        <div className="max-w-2xl mx-auto mt-12 bg-gray-50 p-8 rounded-2xl shadow-lg border border-gray-200">
-          <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">Secure Your Spot</h3>
-          
-          <div className="grid md:grid-cols-2 gap-6 mb-6">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Full Name</label>
-              <input type="text" className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white text-gray-900" placeholder="Enter your full name" />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
-              <input type="email" className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white text-gray-900" placeholder="your@email.com" />
-            </div>
-          </div>
-
-          <div className="mb-6">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number</label>
-            <input type="tel" className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white text-gray-900" placeholder="+1 (555) 123-4567" />
-          </div>
-
-          <div className="flex items-center justify-between bg-amber-50 p-4 rounded-lg mb-6">
-            <div className="flex items-center space-x-3">
-              <Shield className="w-5 h-5 text-amber-600" />
-              <span className="text-sm text-amber-800">Secure payment processing</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <CreditCard className="w-5 h-5 text-amber-600" />
-              <span className="text-sm text-amber-800">SSL Protected</span>
-            </div>
-          </div>
-
-          <button className="w-full bg-gradient-to-r from-amber-500 to-orange-600 text-white py-4 rounded-xl font-bold text-lg hover:from-amber-600 hover:to-orange-700 transition-all duration-300 shadow-lg hover:shadow-xl">
-            Complete Purchase - ${tickets.find(t => t.id === selectedTicket)?.price}
-          </button>
-        </div>
-      )} */}
+      <PaymentModal isOpen={showModal} onClose={() => setShowModal(false)} ticket={selectedTicket} />
     </section>
   );
-};
+}
 
-export default function AfroSpookHomePage() {
+/** ============== FAQ ============== */
+function FAQ() {
+  const items = [
+    { q: "Is re-entry allowed?", a: "Yes, re-entry is allowed with a valid wristband and ID during event hours." },
+    { q: "Are refunds available?", a: "Tickets are non-refundable, but transferable up to 48 hours before the event." },
+    { q: "Is there parking?", a: "VIP tickets include dedicated parking. General parking is nearby on a first-come basis." },
+  ];
+  const [open, setOpen] = useState<number | null>(0);
+
   return (
-    <main className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="relative overflow-hidden bg-gradient-to-r from-amber-900 via-red-800 to-orange-900 text-white">
-        <div className="absolute inset-0 bg-black/30 bg-opacity-30"></div>
-        
-        {/* African Pattern Background */}
-        <div className="absolute inset-0 opacity-20">
-          <svg className="w-full h-full" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <pattern id="header-pattern" x="0" y="0" width="80" height="80" patternUnits="userSpaceOnUse">
-                <g fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.6">
-                  {/* Diamond shapes */}
-                  <path d="M40 10L70 40L40 70L10 40Z" fill="currentColor" fillOpacity="0.1"/>
-                  <path d="M40 10L70 40L40 70L10 40Z"/>
-                  
-                  {/* Inner circles */}
-                  <circle cx="40" cy="40" r="15" fill="none" strokeWidth="1"/>
-                  <circle cx="40" cy="40" r="8" fill="currentColor" fillOpacity="0.2"/>
-                  
-                  {/* Cross pattern */}
-                  <path d="M25 25L55 55M55 25L25 55" strokeWidth="0.8" opacity="0.4"/>
-                  
-                  {/* Corner dots */}
-                  <circle cx="10" cy="10" r="2" fill="currentColor" opacity="0.3"/>
-                  <circle cx="70" cy="10" r="2" fill="currentColor" opacity="0.3"/>
-                  <circle cx="10" cy="70" r="2" fill="currentColor" opacity="0.3"/>
-                  <circle cx="70" cy="70" r="2" fill="currentColor" opacity="0.3"/>
-                </g>
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#header-pattern)" opacity="0.8"/>
-          </svg>
-        </div>
-        
-        {/* Additional texture overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-transparent via-amber-800/10 to-red-900/20"></div>
-
-        <div className="relative z-10 px-6 py-20">
-          <div className="max-w-6xl mx-auto text-center">
-            <div className="mb-8">
-              <h1 className="text-6xl font-bold mb-4 bg-gradient-to-r from-amber-200 to-orange-300 bg-clip-text text-transparent">
-                AfroSpook 2025
-              </h1>
-              <div className="w-32 h-1 bg-gradient-to-r from-amber-400 to-orange-500 mx-auto mb-6"></div>
-            </div>
-            
-            <p className="text-xl text-amber-100 max-w-3xl mx-auto mb-8 leading-relaxed">
-              Immerse yourself in the vibrant tapestry of African culture, where ancestral rhythms meet contemporary artistry. 
-              AfroSpook 2025 celebrates the diverse heritage, innovative spirit, and boundless creativity of the African diaspora.
-            </p>
-
-            {/* Event Details */}
-            <div className="grid md:grid-cols-3 gap-8 mt-12 max-w-4xl mx-auto">
-              <div className="flex items-center justify-center space-x-3 bg-white/10 bg-opacity-10 backdrop-blur-sm rounded-lg py-4 px-6">
-                <Calendar className="w-6 h-6 text-amber-300" />
-                <div className="text-left">
-                  <p className="text-amber-200 text-sm">Date</p>
-                  <p className="text-white font-semibold">March 15-16, 2025</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-center space-x-3 bg-white/10 bg-opacity-10 backdrop-blur-sm rounded-lg py-4 px-6">
-                <MapPin className="w-6 h-6 text-amber-300" />
-                <div className="text-left">
-                  <p className="text-amber-200 text-sm">Location</p>
-                  <p className="text-white font-semibold">Lagos Cultural Center</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-center space-x-3 bg-white/10 bg-opacity-10 backdrop-blur-sm rounded-lg py-4 px-6">
-                <Clock className="w-6 h-6 text-amber-300" />
-                <div className="text-left">
-                  <p className="text-amber-200 text-sm">Duration</p>
-                  <p className="text-white font-semibold">6PM - 2AM Daily</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Decorative Elements */}
-        <div className="absolute top-10 left-10 w-32 h-32 border-3 border-amber-400/40 rounded-full"></div>
-        <div className="absolute top-20 right-20 w-24 h-24 border-2 border-orange-400/50 rounded-full"></div>
-        <div className="absolute bottom-10 left-1/4 w-28 h-28 border-2 border-red-400/40 rounded-full"></div>
-        <div className="absolute bottom-20 right-1/3 w-20 h-20 border-2 border-amber-300/30 rounded-full"></div>
-      </header>
-
-      <div className="px-6 py-16 max-w-7xl mx-auto">
-        {/* Promo Video */}
-        <VideoSection />
-
-        {/* Featured Highlights */}
-        <section className="mb-20">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Cultural Showcase</h2>
-            <p className="text-gray-600 max-w-3xl mx-auto text-lg">
-              Experience authentic performances, traditional crafts, contemporary art installations, and culinary delights from across the African continent.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-4 gap-6">
-            {[
-              { title: "Live Performances", desc: "Traditional and modern African music", color: "from-red-500 to-pink-600" },
-              { title: "Art Exhibitions", desc: "Contemporary African visual arts", color: "from-amber-500 to-orange-600" },
-              { title: "Cultural Workshops", desc: "Interactive learning experiences", color: "from-green-500 to-teal-600" },
-              { title: "Culinary Journey", desc: "Authentic African cuisine", color: "from-purple-500 to-indigo-600" }
-            ].map((item, index) => (
-              <div key={index} className="group bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 border border-gray-100">
-                <div className={`h-3 bg-gradient-to-r ${item.color}`}></div>
-                <div className="p-6">
-                  <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-gray-700 transition-colors">
-                    {item.title}
-                  </h3>
-                  <p className="text-gray-600 text-sm leading-relaxed">{item.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Ticket List */}
-        <TicketList />
-
-        {/* Trust Indicators */}
-        <section className="text-center py-12 bg-gray-50 rounded-2xl border border-gray-100">
-          <h3 className="text-2xl font-bold text-gray-900 mb-8">Trusted by Thousands</h3>
-          <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            <div className="flex flex-col items-center">
-              <div className="text-3xl font-bold text-amber-600 mb-2">50,000+</div>
-              <p className="text-gray-600">Happy Attendees</p>
-            </div>
-            <div className="flex flex-col items-center">
-              <div className="text-3xl font-bold text-red-600 mb-2">200+</div>
-              <p className="text-gray-600">Cultural Artists</p>
-            </div>
-            <div className="flex flex-col items-center">
-              <div className="text-3xl font-bold text-orange-600 mb-2">15+</div>
-              <p className="text-gray-600">African Countries</p>
-            </div>
-          </div>
-        </section>
+    <section className="mb-24">
+      <div className="mb-8 text-center">
+        <h2 className="font-heading text-3xl font-bold text-white">FAQs</h2>
+        <p className="font-body mx-auto mt-2 max-w-2xl text-sm text-neutral-300">Good to know before you go.</p>
       </div>
 
-      {/* Footer */}
-      <footer className="bg-gradient-to-r from-gray-900 to-black text-white py-12 px-6">
-        <div className="max-w-6xl mx-auto text-center">
-          <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">
-            AfroSpook 2025
-          </h3>
-          <p className="text-gray-400 mb-6">Celebrating African heritage through culture, music, and community</p>
-          <div className="flex justify-center space-x-8 text-sm text-gray-400">
-            <span>© 2025 AfroSpook Events</span>
-            <span>•</span>
-            <span>Privacy Policy</span>
-            <span>•</span>
-            <span>Terms of Service</span>
+      <div className="mx-auto max-w-3xl space-y-3">
+        {items.map((it, idx) => {
+          const active = open === idx;
+          return (
+            <GlowCard key={idx}>
+              <button onClick={() => setOpen(active ? null : idx)} className="flex w-full items-center justify-between px-5 py-4 text-left">
+                <span className="font-medium text-white">{it.q}</span>
+                <ChevronDown className={`h-5 w-5 text-neutral-300 transition ${active ? "rotate-180" : ""}`} />
+              </button>
+              <motion.div
+                initial={false}
+                animate={{ height: active ? "auto" : 0, opacity: active ? 1 : 0 }}
+                transition={{ duration: 0.25 }}
+                className="overflow-hidden px-5"
+              >
+                <p className="pb-5 text-sm text-neutral-300">{it.a}</p>
+              </motion.div>
+            </GlowCard>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+/** ============== FOOTER ============== */
+function Footer() {
+  return (
+    <footer className="border-t border-white/10 bg-black px-6 py-12 text-white">
+      <div className="mx-auto max-w-6xl text-center">
+        <div className="mx-auto mb-4 flex items-center justify-center gap-3">
+          <div className="relative h-[150px] w-[300px] ">
+            <Image src="/footer.png" alt="AfroSpook" fill className="object-contain" />
           </div>
+          {/* <span className="font-heading text-lg">AfroSpook 2025</span> */}
         </div>
-      </footer>
+        <p className="font-body mx-auto max-w-xl text-sm text-neutral-400">Culture. Rhythm. Color.</p>
+        <div className="mt-4 flex justify-center gap-3 text-xs text-neutral-500">
+          <span>© 2025 AfroSpook Events</span>
+          <span>•</span>
+          <span>Privacy Policy</span>
+          <span>•</span>
+          <span>Terms of Service</span>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+/** ============== PAGE ============== */
+export default function AfroSpookHomePage() {
+  return (
+    <main className="min-h-screen bg-[#0A0A0A] text-white">
+      <Header />
+      <div className="mx-auto max-w-7xl px-6 py-14">
+        <FeatureGrid />
+        <TicketList />
+        <FAQ />
+      </div>
+      <Footer />
     </main>
   );
 }

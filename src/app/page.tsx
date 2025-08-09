@@ -283,9 +283,10 @@ export default function AfroSpookTicketing() {
             <div className="flex justify-center lg:justify-end">
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-orange-500 to-lime-500 rounded-3xl blur-2xl opacity-20 animate-pulse"></div>
-                <div className="relative bg-white rounded-3xl p-8 shadow-2xl border border-gray-200">
+                <div className="relative bg-black rounded-3xl p-8 shadow-2xl border border-gray-200">
                   <img 
-                    src="/afrospook-logo.png" 
+                    src="/afrospook-logo.png"
+                    
                     alt="AfroSpook 2025" 
                     className="h-40 w-80 object-contain"
                   />

@@ -204,7 +204,7 @@ export default function AfroSpookTicketing() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-lime-50">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-40">
+      <header className="bg-black backdrop-blur-sm  sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <AfroSpookLogo className="h-12 w-40" />
@@ -285,8 +285,7 @@ export default function AfroSpookTicketing() {
                 <div className="absolute inset-0 bg-gradient-to-r from-orange-500 to-lime-500 rounded-3xl blur-2xl opacity-20 animate-pulse"></div>
                 <div className="relative bg-black rounded-3xl p-8 shadow-2xl border border-gray-200">
                   <img 
-                    src="/afrospook-logo.png"
-                    
+                    src="/afrospook-logo.png" 
                     alt="AfroSpook 2025" 
                     className="h-40 w-80 object-contain"
                   />
@@ -408,14 +407,14 @@ export default function AfroSpookTicketing() {
       />
 
       {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 py-8">
+      <footer className="bg-black border-t border-gray-800 py-8">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <img 
             src="/footer.png" 
             alt="AfroSpook Footer" 
             className="h-16 mx-auto object-contain mb-4"
           />
-          <p className="text-gray-600 mb-4">Culture. Rhythm. Color.</p>
+          <p className="text-gray-400 mb-4">Culture. Rhythm. Color.</p>
           <div className="flex justify-center gap-4 text-sm text-gray-500">
             <span>© 2025 AfroSpook Events</span>
             <span>•</span>

@@ -1,20 +1,15 @@
 import type { Metadata } from "next";
-import { Bebas_Neue, Sora } from "next/font/google";
+import { Exo } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
 
 
-const bebas = Bebas_Neue({
-  weight: "400",
-  subsets: ["latin"],
-  variable: "--font-bebas",
-});
-
-const sora = Sora({
-  weight: ["300", "400", "500", "700"],
-  subsets: ["latin"],
-  variable: "--font-sora",
-});
+const exo = Exo({ 
+  subsets: ['latin'],
+  weight: ['100', '200', '300', '400', '500', '600', '700', '800', '900'],
+  style: ['normal', 'italic'],
+  variable: '--font-exo'
+})
 
 
 
@@ -38,7 +33,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${bebas.variable} ${sora.variable} antialiased`}
+        className={`${exo.variable}  antialiased`}
       >
         {children}
       </body>

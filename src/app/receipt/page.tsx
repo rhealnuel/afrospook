@@ -7,54 +7,36 @@ import {
   Camera,
   ArrowRight,
   Mail,
-  Receipt,
   Hash,
   Calendar,
   CreditCard,
   Copy,
   Check,
+  MapPin,
 } from "lucide-react";
 
-/* Brand */
 const ORANGE = "#FF3B00";
 const LIME = "#B6FF00";
 
-/* --- tiny hash -> pretty serials (fallback when none provided) --- */
 function hashToSerial(seed: string, index = 0) {
-  // simple hash -> 16 hex chars
   let h = 2166136261 ^ index;
   for (let i = 0; i < seed.length; i++) {
     h ^= seed.charCodeAt(i);
     h = Math.imul(h, 16777619);
   }
   let hex = (h >>> 0).toString(16).padStart(8, "0");
-  // expand a bit more using the seed again
   for (let i = 0; i < seed.length && hex.length < 16; i++) {
     hex += (seed.charCodeAt(i) & 0xff).toString(16).padStart(2, "0");
   }
   hex = hex.slice(0, 16).toUpperCase();
-  // AF-XXXX-XXXX-XXXX
-  return `AF-${hex.slice(0,4)}-${hex.slice(4,8)}-${hex.slice(8,12)}`;
+  return `AF-${hex.slice(0, 4)}-${hex.slice(4, 8)}-${hex.slice(8, 12)}`;
 }
 
 function SuccessPage() {
   const params = useSearchParams();
   const [show, setShow] = useState(false);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
-
-  // Read meta from sessionStorage if the modal saved it
-  const [meta, setMeta] = useState<null | {
-    buyer: { name: string; email: string; phone: string };
-    ticket: { id: number; name: string; price: number; seats?: number };
-    attendees: { name: string; email: string }[];
-    gateway: {
-      transactionReference: string;
-      paymentReference: string;
-      amountPaid: number;
-      paidOn?: string;
-    };
-    serials?: string[]; // OPTIONAL: backend-provided serials (preferred)
-  }>(null);
+  const [meta, setMeta] = useState<any>(null);
 
   useEffect(() => {
     setShow(true);
@@ -64,57 +46,54 @@ function SuccessPage() {
     } catch {}
   }, []);
 
-  // Fallbacks from URL
   const fallback = {
     customerName: params.get("name") ?? "Guest",
     amountPaid: Number(params.get("amount") ?? 0),
     paymentReference: params.get("ref") ?? "N/A",
     transactionReference: params.get("txref") ?? "N/A",
     paidOn: params.get("paidOn") ?? new Date().toISOString(),
-    // Either single serial or comma-separated serials
     serialParam: params.get("serials") ?? params.get("serial") ?? "",
     seats: Number(params.get("seats") ?? 1) || 1,
   };
 
-  // Normalize attendees + seats
   const seats = meta?.ticket?.seats ?? fallback.seats;
   const attendees =
-    meta?.attendees && meta.attendees.length
+    meta?.attendees?.length
       ? meta.attendees
       : [{ name: meta?.buyer?.name ?? fallback.customerName, email: meta?.buyer?.email ?? "" }];
 
-  // Build serial list (priority: meta.serials -> URL list -> generate)
   const serials: string[] = useMemo(() => {
-    if (meta?.serials?.length) {
-      return meta.serials.slice(0, seats);
-    }
-    const fromUrl = fallback.serialParam
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (fromUrl.length) {
-      return fromUrl.slice(0, seats);
-    }
-    // generate deterministic serials (client-side fallback)
+    if (meta?.serials?.length) return meta.serials.slice(0, seats);
+    const fromUrl = fallback.serialParam.split(",").map(s => s.trim()).filter(Boolean);
+    if (fromUrl.length) return fromUrl.slice(0, seats);
     const seed = `${meta?.gateway?.paymentReference ?? fallback.paymentReference}|${
       meta?.gateway?.transactionReference ?? fallback.transactionReference
     }|${seats}`;
     return Array.from({ length: seats }, (_, i) => hashToSerial(seed, i));
   }, [meta, seats, fallback.paymentReference, fallback.transactionReference, fallback.serialParam]);
 
-  const data = useMemo(() => {
-    return {
-      name: meta?.buyer?.name ?? fallback.customerName,
-      amount: meta?.ticket?.price ?? fallback.amountPaid,
-      ref: meta?.gateway?.paymentReference ?? fallback.paymentReference,
-      txref: meta?.gateway?.transactionReference ?? fallback.transactionReference,
-      paidOn: meta?.gateway?.paidOn ?? fallback.paidOn,
-      ticketName: meta?.ticket?.name ?? "AfroSpook 2025 Ticket",
-      seats,
-      attendees: attendees.slice(0, seats),
-      serials,
-    };
-  }, [meta, fallback, seats, attendees, serials]);
+  const data = useMemo(() => ({
+    name: meta?.buyer?.name ?? fallback.customerName,
+    amount: meta?.ticket?.price ?? fallback.amountPaid,
+    ref: meta?.gateway?.paymentReference ?? fallback.paymentReference,
+    txref: meta?.gateway?.transactionReference ?? fallback.transactionReference,
+    paidOn: meta?.gateway?.paidOn ?? fallback.paidOn,
+    ticketName: meta?.ticket?.name ?? "AfroSpook 2025 Ticket",
+    seats,
+    attendees: attendees.slice(0, seats),
+    serials,
+  }), [meta, fallback, seats, attendees, serials]);
+
+  // Pair each attendee with its serial for rendering
+  const entries = useMemo(
+    () =>
+      Array.from({ length: data.seats }, (_, i) => ({
+        name: data.attendees[i]?.name || `Attendee ${i + 1}`,
+        email: data.attendees[i]?.email || "—",
+        serial: data.serials[i] || "",
+      })),
+    [data.seats, data.attendees, data.serials]
+  );
 
   const handleDone = () => (window.location.href = "/");
 
@@ -127,161 +106,133 @@ function SuccessPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] px-4 py-10 text-sm text-white">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-lime-50 px-4 py-8 text-sm text-gray-900">
       <div
-        className={`mx-auto w-full max-w-lg transition-all duration-500 ${
+        className={`mx-auto w-full max-w-xl transition-all duration-500 ${
           show ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
         }`}
       >
         {/* Header */}
-        <div className="mb-5 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#FF3B00] to-[#B6FF00] shadow-[0_10px_30px_rgba(182,255,0,0.25)]">
-            <CheckCircle className="h-9 w-9 text-black" />
+        <div className="mb-4 text-center">
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-sm border border-gray-200">
+            <CheckCircle className="h-8 w-8" style={{ color: LIME }} />
           </div>
-          <h1 className="mt-3 text-2xl font-bold">Payment Successful</h1>
-          <p className="text-neutral-300">Welcome to AfroSpook 2025</p>
+          {/* Logo on black for contrast */}
+          <div className="mx-auto mb-2 flex h-14 w-40 items-center justify-center rounded-lg bg-black p-2">
+            <img src="/afrospook-logo.png" alt="AfroSpook" className="h-full w-auto object-contain" />
+          </div>
+          <h1 className="text-xl font-bold">Payment Successful</h1>
+          <p className="text-gray-600 text-xs">Welcome to AfroSpook 2025</p>
         </div>
 
-        {/* Card Frame */}
-        <div className="rounded-3xl bg-gradient-to-br from-[#FF3B00]/40 via-white/10 to-[#B6FF00]/40 p-[1.5px] shadow-[0_0_60px_rgba(255,59,0,0.15)]">
-          <div className="rounded-3xl border border-white/10 bg-neutral-950/90 px-5 py-6 backdrop-blur-xl">
-            {/* Receipt Header */}
-            <div className="text-center">
-              <div className="mb-2 flex items-center justify-center">
-                <Receipt className="h-5 w-5 text-lime-300" />
+        {/* Card */}
+        <div className="rounded-2xl bg-gradient-to-br from-orange-200/70 via-white to-lime-200/70 p-[1px] shadow">
+          <div className="rounded-2xl bg-white px-5 py-5">
+            {/* Ticket title + amount */}
+            <div className="flex items-center justify-between text-sm font-semibold">
+              <span>{data.ticketName}</span>
+              <span className="flex items-center gap-1">
+                <CreditCard className="h-4 w-4" style={{ color: ORANGE }} />
+                ₦{Number(data.amount).toLocaleString()}
+              </span>
+            </div>
+
+            {/* Info compact */}
+            <div className="mt-3 grid grid-cols-2 gap-y-1 text-xs">
+              <div className="flex items-center gap-1 text-gray-600">
+                <Calendar className="h-3.5 w-3.5" style={{ color: ORANGE }} />
+                {new Date(data.paidOn).toLocaleDateString()}
               </div>
-              <h2 className="text-base font-semibold">{data.ticketName}</h2>
-              <p className="text-xs text-neutral-400">Music • Art • Culture • Food</p>
-            </div>
-
-            {/* Amount pill */}
-            <div className="mt-4 flex items-center justify-center">
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-neutral-300">
-                <CreditCard className="h-4 w-4 text-orange-400" />
-                <span className="font-semibold text-white">₦{Number(data.amount).toLocaleString()}</span>
-                {data.seats > 1 && (
-                  <>
-                    <span className="text-white/60">•</span>
-                    <span>
-                      {data.seats} {data.seats > 1 ? "seats" : "seat"}
-                    </span>
-                  </>
-                )}
+              <div className="flex items-center gap-1 text-gray-600">
+                <Hash className="h-3.5 w-3.5" style={{ color: LIME }} /> {data.ref}
               </div>
+              <div className="col-span-2 truncate text-gray-600">Tx: {data.txref}</div>
+              <div className="col-span-2 font-medium text-gray-800">{data.name}</div>
             </div>
 
-            {/* Info block */}
-            <div className="mt-6 space-y-2">
-              <InfoRow label="Name" value={data.name} />
-              <InfoRow label="Payment Ref" value={data.ref} icon={<Hash className="h-4 w-4 text-lime-300" />} />
-              <InfoRow label="Transaction Ref" value={data.txref} />
-              <InfoRow
-                label="Date"
-                value={new Date(data.paidOn).toLocaleString()}
-                icon={<Calendar className="h-4 w-4 text-orange-400" />}
-              />
+            {/* Event address (always visible) */}
+            <div className="mt-3 flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-700">
+              <MapPin className="h-3.5 w-3.5" style={{ color: ORANGE }} />
+              Elegushi Beach, Lagos
             </div>
 
-            {/* Serial(s) */}
-            <div className="mt-6">
-              <p className="mb-2 text-xs text-neutral-400">
-                {data.seats > 1 ? "Serial Codes (per attendee)" : "Serial Code"}
+            {/* Attendees + serials */}
+            <div className="mt-4">
+              <p className="mb-1 text-xs text-gray-500">
+                {data.seats > 1 ? "Attendees & Serial Codes" : "Attendee & Serial Code"}
               </p>
 
-              {data.seats > 1 ? (
-                <div className="space-y-2">
-                  {data.attendees.map((a, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2"
-                    >
+              <div className={`grid gap-2 ${data.seats > 1 ? "grid-cols-1" : "grid-cols-1"}`}>
+                {entries.map((row, i) => (
+                  <div
+                    key={i}
+                    className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"
+                  >
+                    <div className="flex items-center justify-between">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">
-                          {a.name || `Attendee ${i + 1}`}
+                        <p className="truncate text-sm font-semibold text-gray-900">
+                          {row.name}
                         </p>
-                        <p className="truncate text-[11px] text-neutral-300">{a.email || "—"}</p>
+                        <p className="truncate text-[11px] text-gray-600">
+                          {row.email}
+                        </p>
                       </div>
+
                       <div className="ml-3 flex items-center gap-2">
-                        <code className="rounded-md bg-black/50 px-2 py-1 font-mono text-xs text-white">
-                          {data.serials[i] || hashToSerial(data.ref + data.txref, i)}
+                        <code className="rounded bg-white px-2 py-1 text-[11px] border border-gray-200 font-mono">
+                          {row.serial}
                         </code>
                         <button
-                          onClick={() => copySerial(data.serials[i] || hashToSerial(data.ref + data.txref, i), i)}
-                          className="inline-flex items-center justify-center rounded-md border border-white/10 bg-white/5 p-1.5 text-neutral-200 hover:bg-white/10"
+                          onClick={() => copySerial(row.serial, i)}
+                          className="p-1 rounded hover:bg-gray-100"
                           title="Copy serial"
                         >
-                          {copiedIdx === i ? <Check className="h-4 w-4 text-lime-300" /> : <Copy className="h-4 w-4" />}
+                          {copiedIdx === i ? (
+                            <Check className="h-3.5 w-3.5" style={{ color: LIME }} />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5 text-gray-600" />
+                          )}
                         </button>
                       </div>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2">
-                  <code className="rounded-md bg-black/50 px-2 py-1 font-mono text-xs text-white">
-                    {data.serials[0]}
-                  </code>
-                  <button
-                    onClick={() => copySerial(data.serials[0], 0)}
-                    className="inline-flex items-center justify-center rounded-md border border-white/10 bg-white/5 p-1.5 text-neutral-200 hover:bg-white/10"
-                    title="Copy serial"
-                  >
-                    {copiedIdx === 0 ? <Check className="h-4 w-4 text-lime-300" /> : <Copy className="h-4 w-4" />}
-                  </button>
-                </div>
-              )}
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Notice */}
-            <div className="mt-6 flex items-start gap-2 rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-neutral-300">
-              <Mail className="mt-[2px] h-4 w-4 text-lime-300" />
-              <p>A copy of this receipt has been sent to the email you provided. Please keep it safe.</p>
+            <div className="mt-3 flex items-start gap-2 rounded-lg border border-gray-200 bg-gray-50 p-2 text-[11px] text-gray-700">
+              <Mail className="mt-[1px] h-3.5 w-3.5" style={{ color: LIME }} />
+              <p>Receipt has been sent to your email.</p>
             </div>
 
             {/* CTA */}
-            <div className="mt-6 text-center">
+            <div className="mt-4 text-center">
               <button
                 onClick={handleDone}
-                className="mx-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#FF3B00] to-[#B6FF00] px-4 py-2 font-semibold text-black shadow-[0_10px_30px_rgba(255,59,0,0.25)] transition hover:opacity-95"
+                className="inline-flex items-center justify-center gap-1 rounded-xl px-3 py-1.5 text-xs font-semibold text-white shadow"
+                style={{ background: "linear-gradient(90deg, #FF3B00 0%, #B6FF00 100%)" }}
               >
-                <Camera className="h-4 w-4" />
-                Done — Take me home
-                <ArrowRight className="h-4 w-4" />
+                <Camera className="h-3.5 w-3.5" />
+                Done
+                <ArrowRight className="h-3.5 w-3.5" />
               </button>
-              <p className="mt-1 text-[11px] text-neutral-500">This will take you back to the homepage</p>
             </div>
           </div>
         </div>
 
-        <p className="mt-4 text-center text-[11px] text-neutral-500">AfroSpook 2025 • Lagos Cultural Center</p>
+        {/* Small footer */}
+        <p className="mt-3 text-center text-[10px] text-gray-500">
+          AfroSpook 2025 • Lagos Cultural Center
+        </p>
       </div>
-    </div>
-  );
-}
-
-function InfoRow({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: string;
-  icon?: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between border-b border-white/10 pb-2">
-      <div className="flex items-center gap-2 text-neutral-300">
-        {icon}
-        <span className="font-medium">{label}:</span>
-      </div>
-      <span className="font-mono text-white">{value}</span>
     </div>
   );
 }
 
 export default function ReceiptPage() {
   return (
-    <Suspense fallback={<div className="py-12 text-center text-white">Loading receipt...</div>}>
+    <Suspense fallback={<div className="py-12 text-center text-gray-600">Loading receipt...</div>}>
       <SuccessPage />
     </Suspense>
   );

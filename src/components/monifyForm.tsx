@@ -23,15 +23,14 @@ type ApiVerifyPaymentResponse = {
   success: boolean;
   id?: string;
   attendees?: Array<{ name: string; email: string; serial: string; ticketName: string }>;
-  serials?: string[]; // returned for convenience (not stored at DB root)
+  serials?: string[];
   receiptUrl?: string;
   error?: string;
 };
 
-// If you have the exact Monnify callback shape, replace any below with it.
 type MonnifyResult = {
-  status: "SUCCESS" | "FAILED" | string;
-  paymentStatus: "PAID" | "PENDING" | "FAILED" | string;
+  status?: string;              // "SUCCESS" | "SUCCESSFUL" | ...
+  paymentStatus?: string;       // "PAID" | "PENDING" | ...
   transactionReference: string;
   paymentReference: string;
   amountPaid: number | string;
@@ -43,28 +42,20 @@ const ACCENT_LIME = "#7FD700";
 export default function PaymentModal({ isOpen, onClose, ticket }: PaymentModalProps) {
   const seats = ticket?.seats ?? 1;
 
-  // Buyer (primary contact/payer)
   const [buyer, setBuyer] = useState({ name: "", email: "", phone: "" });
-
-  // Additional attendees (for seats > 1)
   const [attendees, setAttendees] = useState<Attendee[]>([]);
-
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Reset + create attendee slots when opening or changing ticket
   useEffect(() => {
     if (!isOpen || !ticket) return;
     setBuyer({ name: "", email: "", phone: "" });
-
     const extraCount = Math.max((ticket.seats ?? 1) - 1, 0);
     setAttendees(Array.from({ length: extraCount }, () => ({ name: "", email: "" })));
-
     setIsLoading(false);
     setIsSaving(false);
   }, [isOpen, ticket]);
 
-  // Validation
   const baseValid =
     buyer.name.trim().length > 1 &&
     /\S+@\S+\.\S+/.test(buyer.email) &&
@@ -76,21 +67,19 @@ export default function PaymentModal({ isOpen, onClose, ticket }: PaymentModalPr
 
   const isFormValid = !!(baseValid && attendeesValid);
 
-  // CTA label
   const payLabel = useMemo(() => {
     const amt = ticket ? `₦${Number(ticket.price).toLocaleString()}` : "";
     const tail = seats > 1 ? ` (${seats} seats)` : "";
     return `Pay Now — ${amt}${tail}`;
   }, [ticket, seats]);
 
-  // Save to DB + trigger emails on server (new backend contract)
+  // ---- Save (server) + redirect ----
   const saveToDB = async (res: MonnifyResult) => {
     setIsSaving(true);
     try {
       // Ensure buyer is first attendee; cap to seats
       const baseAttendees: Attendee[] = [{ name: buyer.name, email: buyer.email }, ...attendees].slice(0, seats);
 
-      // Send ticketName too (server attaches serial)
       const attendeesForRequest = baseAttendees.map((a) => ({
         ...a,
         ticketName: ticket?.name ?? "AfroSpook 2025 Ticket",
@@ -117,13 +106,9 @@ export default function PaymentModal({ isOpen, onClose, ticket }: PaymentModalPr
         throw new Error(text || `Save failed with status ${r.status}`);
       }
 
-      const data = (await r.json()) as ApiVerifyPaymentResponse;
+      const data: ApiVerifyPaymentResponse = await r.json();
+      if (!data.success) throw new Error(data.error || "Payment saved but server returned an error.");
 
-      if (!data.success) {
-        throw new Error(data.error || "Payment saved but server returned an error.");
-      }
-
-      // Prefer server-enriched attendees (now include serial + ticketName)
       const enrichedAttendees =
         (Array.isArray(data.attendees) && data.attendees.length ? data.attendees : attendeesForRequest) as Array<{
           name: string;
@@ -132,11 +117,10 @@ export default function PaymentModal({ isOpen, onClose, ticket }: PaymentModalPr
           ticketName: string;
         }>;
 
-      // Persist receipt meta for /receipt page
       const receiptMeta = {
         buyer,
         ticket: { id: ticket?.id, name: ticket?.name, price: Number(ticket?.price), seats },
-        attendees: enrichedAttendees, // each includes serial + ticketName from server
+        attendees: enrichedAttendees,
         gateway: {
           transactionReference: res.transactionReference,
           paymentReference: res.paymentReference,
@@ -149,7 +133,6 @@ export default function PaymentModal({ isOpen, onClose, ticket }: PaymentModalPr
         sessionStorage.setItem("receipt_meta", JSON.stringify(receiptMeta));
       } catch {}
 
-      // Redirect to server-provided receiptUrl (fallback)
       const fallbackUrl = `/receipt?ref=${encodeURIComponent(
         res.paymentReference
       )}&txref=${encodeURIComponent(res.transactionReference)}&amount=${Number(ticket?.price)}&seats=${seats}`;
@@ -163,28 +146,49 @@ export default function PaymentModal({ isOpen, onClose, ticket }: PaymentModalPr
     }
   };
 
-  // Launch Monnify
+  // ---- Launch Monnify (overlay + redirect fallback) ----
   const handleSubmit = () => {
     if (!isFormValid || !ticket || isLoading || isSaving) return;
     setIsLoading(true);
 
-    // Client-side unique reference (still helpful)
     const paymentReference = `AF-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
-    // Close OUR modal so Monnify’s iframe stays on top
+    // Stash pending checkout context (used by /payment/return)
+    try {
+      const baseAttendees = [{ name: buyer.name, email: buyer.email }, ...attendees]
+        .slice(0, seats)
+        .map((a) => ({ ...a, ticketName: ticket?.name ?? "AfroSpook 2025 Ticket" }));
+
+      const pending = {
+        buyer,
+        ticket: { id: ticket?.id, name: ticket?.name, price: Number(ticket?.price), seats },
+        attendees: baseAttendees,
+      };
+      sessionStorage.setItem("pending_checkout_meta", JSON.stringify(pending));
+    } catch {}
+
+    // Close our modal, then launch payment
     onClose();
 
     setTimeout(() => {
+      const redirectUrl = `${window.location.origin}/payment/return`;
+
       triggerMonnifyPayment({
         amount: Number(ticket.price),
         customerName: buyer.name,
         customerEmail: buyer.email,
         customerPhone: buyer.phone,
         paymentReference,
+        redirectUrl, // 👈 mobile fallback
         onComplete: (res: MonnifyResult) => {
           setIsLoading(false);
-          if (res.paymentStatus === "PAID" && res.status === "SUCCESS") {
-            saveToDB(res);
+
+          const s = String(res.status || "").toUpperCase();
+          const ps = String(res.paymentStatus || "").toUpperCase();
+          const ok = ps === "PAID" || s === "SUCCESS" || s === "SUCCESSFUL";
+
+          if (ok) {
+            saveToDB(res); // fast path
           } else {
             alert("Payment failed or cancelled.");
           }
@@ -213,10 +217,8 @@ export default function PaymentModal({ isOpen, onClose, ticket }: PaymentModalPr
               transition={{ type: "spring", stiffness: 320, damping: 26 }}
               className="w-full max-w-2xl"
             >
-              {/* Frame */}
               <div className="rounded-3xl bg-gradient-to-br from-orange-200/60 via-white to-lime-200/60 p-[1.25px] shadow-[0_20px_80px_rgba(0,0,0,0.08)]">
                 <div className="relative rounded-3xl bg-white">
-                  {/* Close */}
                   <button
                     onClick={onClose}
                     className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white/80 text-gray-600 transition hover:bg-white hover:shadow-sm"
@@ -225,7 +227,6 @@ export default function PaymentModal({ isOpen, onClose, ticket }: PaymentModalPr
                     <X className="h-5 w-5" />
                   </button>
 
-                  {/* Header */}
                   <div className="px-6 pt-7">
                     <div className="mx-auto mb-4 flex items-center justify-center">
                       <div
@@ -241,7 +242,6 @@ export default function PaymentModal({ isOpen, onClose, ticket }: PaymentModalPr
 
                     <h2 className="text-center text-2xl font-bold text-gray-900">Complete Purchase</h2>
 
-                    {/* Ticket pill */}
                     <div className="mt-3 flex items-center justify-center">
                       <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs text-gray-700">
                         <span
@@ -264,7 +264,6 @@ export default function PaymentModal({ isOpen, onClose, ticket }: PaymentModalPr
 
                   {/* Form */}
                   <div className="px-6 pb-6 pt-5">
-                    {/* Buyer */}
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <label className="block md:col-span-2">
                         <span className="mb-1 block text-xs text-gray-500">Full Name (Buyer)</span>
@@ -300,7 +299,6 @@ export default function PaymentModal({ isOpen, onClose, ticket }: PaymentModalPr
                       </label>
                     </div>
 
-                    {/* Additional attendees for Couple / Group */}
                     {seats > 1 && (
                       <div className="mt-6">
                         <p className="mb-2 text-xs text-gray-500">
@@ -337,7 +335,6 @@ export default function PaymentModal({ isOpen, onClose, ticket }: PaymentModalPr
                       </div>
                     )}
 
-                    {/* Secure bar */}
                     <div className="mt-6 flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-700">
                       <div className="flex items-center gap-2">
                         <Shield className="h-4 w-4" style={{ color: ACCENT_LIME }} />
@@ -351,7 +348,6 @@ export default function PaymentModal({ isOpen, onClose, ticket }: PaymentModalPr
                       </div>
                     </div>
 
-                    {/* CTA */}
                     <motion.button
                       onClick={handleSubmit}
                       disabled={!isFormValid || isLoading || isSaving}

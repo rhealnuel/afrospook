@@ -1,16 +1,17 @@
+// app/payment/return/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 
-export default function PaymentReturnPage() {
+function PaymentReturnInner() {
   const params = useSearchParams();
   const router = useRouter();
   const [err, setErr] = useState<string | null>(null);
 
   const payload = useMemo(() => {
-    const status = (params.get("status") || "").toUpperCase();             // e.g. SUCCESS / SUCCESSFUL / FAILED
-    const paymentStatus = (params.get("paymentStatus") || "").toUpperCase(); // e.g. PAID
+    const status = (params.get("status") || "").toUpperCase();              // SUCCESS / SUCCESSFUL / FAILED
+    const paymentStatus = (params.get("paymentStatus") || "").toUpperCase(); // PAID / FAILED / PENDING
     const ok = paymentStatus === "PAID" || status === "SUCCESS" || status === "SUCCESSFUL";
 
     return {
@@ -57,7 +58,7 @@ export default function PaymentReturnPage() {
             paidOn: payload.paidOn,
             ticket: base.ticket,       // { id, name, price, seats }
             attendees: base.attendees, // [{ name, email, ticketName }]
-            raw: Object.fromEntries(params),
+            raw: Object.fromEntries(params.entries()),
           }),
         });
 
@@ -99,5 +100,19 @@ export default function PaymentReturnPage() {
         {err ? err : "Finalizing your payment…"}
       </div>
     </div>
+  );
+}
+
+export default function PaymentReturnPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-white">
+          <div className="text-center text-sm text-gray-700">Loading…</div>
+        </div>
+      }
+    >
+      <PaymentReturnInner />
+    </Suspense>
   );
 }

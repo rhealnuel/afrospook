@@ -1,9 +1,9 @@
+// src/components/PaymentModal.tsx
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
 import { CreditCard, X, CheckCircle, Shield } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { triggerMonnifyPayment } from "@/lib/monify";
 import ModalPortal from "./modalPortal";
 
 interface PaymentModalProps {
@@ -19,24 +19,6 @@ interface PaymentModalProps {
 
 type Attendee = { name: string; email: string };
 
-type ApiVerifyPaymentResponse = {
-  success: boolean;
-  id?: string;
-  attendees?: Array<{ name: string; email: string; serial: string; ticketName: string }>;
-  serials?: string[];
-  receiptUrl?: string;
-  error?: string;
-};
-
-type MonnifyResult = {
-  status?: string;              // "SUCCESS" | "SUCCESSFUL" | ...
-  paymentStatus?: string;       // "PAID" | "PENDING" | ...
-  transactionReference: string;
-  paymentReference: string;
-  amountPaid: number | string;
-  paidOn?: string;
-};
-
 const ACCENT_LIME = "#7FD700";
 
 export default function PaymentModal({ isOpen, onClose, ticket }: PaymentModalProps) {
@@ -45,7 +27,7 @@ export default function PaymentModal({ isOpen, onClose, ticket }: PaymentModalPr
   const [buyer, setBuyer] = useState({ name: "", email: "", phone: "" });
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSaving] = useState(false); // kept to preserve button states
 
   useEffect(() => {
     if (!isOpen || !ticket) return;
@@ -53,7 +35,6 @@ export default function PaymentModal({ isOpen, onClose, ticket }: PaymentModalPr
     const extraCount = Math.max((ticket.seats ?? 1) - 1, 0);
     setAttendees(Array.from({ length: extraCount }, () => ({ name: "", email: "" })));
     setIsLoading(false);
-    setIsSaving(false);
   }, [isOpen, ticket]);
 
   const baseValid =
@@ -73,87 +54,14 @@ export default function PaymentModal({ isOpen, onClose, ticket }: PaymentModalPr
     return `Pay Now — ${amt}${tail}`;
   }, [ticket, seats]);
 
-  // ---- Save (server) + redirect ----
-  const saveToDB = async (res: MonnifyResult) => {
-    setIsSaving(true);
-    try {
-      // Ensure buyer is first attendee; cap to seats
-      const baseAttendees: Attendee[] = [{ name: buyer.name, email: buyer.email }, ...attendees].slice(0, seats);
-
-      const attendeesForRequest = baseAttendees.map((a) => ({
-        ...a,
-        ticketName: ticket?.name ?? "AfroSpook 2025 Ticket",
-      }));
-
-      const r = await fetch("/api/verify-payment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          transactionReference: res.transactionReference,
-          paymentReference: res.paymentReference,
-          amountPaid: Number(res.amountPaid),
-          customerName: buyer.name,
-          customerEmail: buyer.email,
-          paidOn: res.paidOn,
-          ticket: { id: ticket?.id, name: ticket?.name, price: Number(ticket?.price), seats },
-          attendees: attendeesForRequest,
-          raw: res,
-        }),
-      });
-
-      if (!r.ok) {
-        const text = await r.text().catch(() => "");
-        throw new Error(text || `Save failed with status ${r.status}`);
-      }
-
-      const data: ApiVerifyPaymentResponse = await r.json();
-      if (!data.success) throw new Error(data.error || "Payment saved but server returned an error.");
-
-      const enrichedAttendees =
-        (Array.isArray(data.attendees) && data.attendees.length ? data.attendees : attendeesForRequest) as Array<{
-          name: string;
-          email: string;
-          serial?: string;
-          ticketName: string;
-        }>;
-
-      const receiptMeta = {
-        buyer,
-        ticket: { id: ticket?.id, name: ticket?.name, price: Number(ticket?.price), seats },
-        attendees: enrichedAttendees,
-        gateway: {
-          transactionReference: res.transactionReference,
-          paymentReference: res.paymentReference,
-          amountPaid: Number(res.amountPaid),
-          paidOn: res.paidOn,
-        },
-        serials: Array.isArray(data.serials) ? data.serials : enrichedAttendees.map((a) => a.serial).filter(Boolean),
-      };
-      try {
-        sessionStorage.setItem("receipt_meta", JSON.stringify(receiptMeta));
-      } catch {}
-
-      const fallbackUrl = `/receipt?ref=${encodeURIComponent(
-        res.paymentReference
-      )}&txref=${encodeURIComponent(res.transactionReference)}&amount=${Number(ticket?.price)}&seats=${seats}`;
-
-      window.location.href = data.receiptUrl || fallbackUrl;
-    } catch (e) {
-      console.error("Save-to-DB/email failed:", e);
-      alert("Payment saved but receipt/email failed. Please check your inbox or contact support.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // ---- Launch Monnify (overlay + redirect fallback) ----
-  const handleSubmit = () => {
+  // Launch Paystack via server-init (redirect)
+  const handleSubmit = async () => {
     if (!isFormValid || !ticket || isLoading || isSaving) return;
     setIsLoading(true);
 
-    const paymentReference = `AF-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+    const reference = `PSK-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
-    // Stash pending checkout context (used by /payment/return)
+    // Stash pending checkout context for /payment/return
     try {
       const baseAttendees = [{ name: buyer.name, email: buyer.email }, ...attendees]
         .slice(0, seats)
@@ -163,41 +71,42 @@ export default function PaymentModal({ isOpen, onClose, ticket }: PaymentModalPr
         buyer,
         ticket: { id: ticket?.id, name: ticket?.name, price: Number(ticket?.price), seats },
         attendees: baseAttendees,
+        reference,
       };
       sessionStorage.setItem("pending_checkout_meta", JSON.stringify(pending));
     } catch {}
 
-    // Close our modal, then launch payment
-    onClose();
+    try {
+      const callbackUrl = `${window.location.origin}/payment/return`;
 
-    setTimeout(() => {
-      const redirectUrl = `${window.location.origin}/payment/return`;
+      const resp = await fetch("/api/paystack/init", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: buyer.email,
+          amount: Number(ticket.price),
+          reference,
+          callbackUrl,
+          metadata: {
+            buyerName: buyer.name,
+            buyerPhone: buyer.phone,
+            ticketName: ticket.name,
+            seats,
+          },
+        }),
+      }).then((r) => r.json());
 
-      triggerMonnifyPayment({
-        amount: Number(ticket.price),
-        customerName: buyer.name,
-        customerEmail: buyer.email,
-        customerPhone: buyer.phone,
-        paymentReference,
-        redirectUrl, // 👈 mobile fallback
-        onComplete: (res: MonnifyResult) => {
-          setIsLoading(false);
+      if (!resp?.success || !resp?.authorizationUrl) {
+        throw new Error(resp?.error || "Failed to initialize payment");
+      }
 
-          const s = String(res.status || "").toUpperCase();
-          const ps = String(res.paymentStatus || "").toUpperCase();
-          const ok = ps === "PAID" || s === "SUCCESS" || s === "SUCCESSFUL";
-
-          if (ok) {
-            saveToDB(res); // fast path
-          } else {
-            alert("Payment failed or cancelled.");
-          }
-        },
-        onClose: () => {
-          setIsLoading(false);
-        },
-      });
-    }, 120);
+      onClose();
+      window.location.href = resp.authorizationUrl;
+    } catch (err) {
+      console.error("Init/redirect error:", err);
+      alert("Could not start payment. Please try again.");
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -263,7 +172,7 @@ export default function PaymentModal({ isOpen, onClose, ticket }: PaymentModalPr
                     </div>
                   </div>
 
-                  {/* Form - Scrollable */}
+                  {/* Form - Scrollable (restored) */}
                   <div className="px-4 sm:px-6 pb-4 flex-1 overflow-y-auto min-h-0">
                     <div className="space-y-4">
                       {/* Buyer Info */}
@@ -346,7 +255,7 @@ export default function PaymentModal({ isOpen, onClose, ticket }: PaymentModalPr
                     <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 sm:px-4 py-2.5 sm:py-3 text-xs text-gray-700 mb-4">
                       <div className="flex items-center gap-2">
                         <Shield className="h-4 w-4 flex-shrink-0" style={{ color: ACCENT_LIME }} />
-                        <span className="truncate">Secure payment via Monnify</span>
+                        <span className="truncate">Secure payment via Paystack</span>
                       </div>
                       <div
                         className="rounded-full px-2 py-0.5 font-semibold whitespace-nowrap"
@@ -372,14 +281,14 @@ export default function PaymentModal({ isOpen, onClose, ticket }: PaymentModalPr
                           : undefined
                       }
                     >
-                      {isLoading || isSaving ? (
+                      {isLoading ? (
                         <div className="flex items-center gap-2">
                           <motion.div
                             className="h-5 w-5 rounded-full border-2 border-gray-300 border-t-gray-600"
                             animate={{ rotate: 360 }}
                             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                           />
-                          <span>{isSaving ? "Saving..." : "Processing..."}</span>
+                          <span>Processing...</span>
                         </div>
                       ) : (
                         <>

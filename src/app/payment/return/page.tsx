@@ -1,156 +1,109 @@
-// app/payment/return/page.tsx
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 
-// helper to read multiple key variants
-function pickParam(params: URLSearchParams, keys: string[], def: string = "") {
-  for (const k of keys) {
-    const v = params.get(k);
-    if (v != null && v !== "") return v;
-  }
-  return def;
-}
-
-function PaymentReturnInner() {
+export default function PaymentReturnPage() {
   const params = useSearchParams();
   const router = useRouter();
-  const [err, setErr] = useState<string | null>(null);
-
-  const payload = useMemo(() => {
-    // status variants we’ve seen on mobile/in-app browsers
-    const statusRaw = pickParam(params, [
-      "paymentStatus",
-      "paymentstatus",
-      "payment_status",
-      "status",
-      "transactionStatus",
-      "transaction_status",
-      "statusCode",
-    ]);
-
-    const status = (statusRaw || "").toUpperCase();
-
-    // treat any of these as success
-    const ok =
-      status.includes("PAID") ||
-      status.includes("SUCCESS") ||
-      status.includes("SUCCESSFUL") ||
-      status.includes("APPROVED") ||
-      status.includes("COMPLETED");
-
-    const paymentReference =
-      pickParam(params, ["paymentReference", "paymentreference", "reference"]) || "";
-
-    const transactionReference =
-      pickParam(params, ["transactionReference", "transactionreference", "transaction_ref"]) || "";
-
-    const amountPaidRaw = pickParam(params, ["amountPaid", "amount", "amt"], "0");
-    const paidOn = pickParam(params, ["paidOn", "paid_on"], new Date().toISOString());
-
-    return {
-      ok,
-      status, // for debugging if needed
-      paymentReference,
-      transactionReference,
-      amountPaid: Number(amountPaidRaw) || 0,
-      paidOn,
-    };
-  }, [params]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    (async () => {
+    const run = async () => {
       try {
-        // Recover the pre-payment context (set before opening Monnify)
-        const metaRaw = sessionStorage.getItem("pending_checkout_meta");
-        const base = metaRaw ? JSON.parse(metaRaw) : null;
+        // Paystack sends ?reference=... (sometimes also trxref)
+        const reference =
+          params.get("reference") || params.get("trxref") || "";
 
-        // If we don’t have context, at least try to forward to receipt
-        if (!base) {
-          if (!payload.ok) {
-            // No context + unclear status: show message but still try to push to / if stuck
-            setErr("Payment status unclear. If you already paid, please check your email for a receipt.");
-            return;
-          }
-          router.replace(
-            `/receipt?ref=${encodeURIComponent(payload.paymentReference)}&txref=${encodeURIComponent(
-              payload.transactionReference
-            )}&amount=${payload.amountPaid}&seats=1`
-          );
+        if (!reference) {
+          setError("Missing transaction reference.");
           return;
         }
 
-        // Even if status looks unclear on mobile, try to save — Monnify may omit status fields on some webviews.
-        const r = await fetch("/api/verify-payment", {
+        // Pull pending checkout context
+        const raw = sessionStorage.getItem("pending_checkout_meta");
+        if (!raw) {
+          setError("Missing pending checkout info.");
+          return;
+        }
+        const pending = JSON.parse(raw) as {
+          buyer: { name: string; email: string; phone?: string };
+          ticket: { id?: number; name?: string; price: number; seats: number };
+          attendees: Array<{ name: string; email: string; ticketName?: string }>;
+          reference: string;
+        };
+
+        // Verify with Paystack
+        const verifyResp = await fetch(`/api/paystack/verify?reference=${encodeURIComponent(reference)}`, {
+          cache: "no-store",
+        }).then((r) => r.json());
+
+        if (!verifyResp?.success) {
+          throw new Error(verifyResp?.error || "Verification failed");
+        }
+
+        // Persist + email via your existing route
+        const saveResp = await fetch("/api/verify-payment", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            transactionReference: payload.transactionReference,
-            paymentReference: payload.paymentReference,
-            amountPaid: payload.amountPaid,
-            customerName: base.buyer?.name,
-            customerEmail: base.buyer?.email,
-            paidOn: payload.paidOn,
-            ticket: base.ticket,       // { id, name, price, seats }
-            attendees: base.attendees, // [{ name, email, ticketName }]
-            // Store raw query for audit/debug
-            raw: Object.fromEntries(params.entries()),
+            transactionReference: reference,
+            paymentReference: reference,
+            amountPaid: Number(verifyResp.amountPaid || pending.ticket.price),
+            customerName: pending.buyer.name,
+            customerEmail: pending.buyer.email,
+            paidOn: verifyResp.paidOn,
+            ticket: pending.ticket,
+            attendees: pending.attendees,
+            raw: { gateway: "paystack", verify: verifyResp },
           }),
-        });
+        }).then((r) => r.json());
 
-        const data = await r.json();
+        if (!saveResp?.success) {
+          throw new Error(saveResp?.error || "Failed to save transaction");
+        }
 
-        // Persist meta for /receipt
-        const receiptMeta = {
-          buyer: base.buyer,
-          ticket: base.ticket,
-          attendees: data.attendees || base.attendees,
-          gateway: {
-            transactionReference: payload.transactionReference,
-            paymentReference: payload.paymentReference,
-            amountPaid: payload.amountPaid,
-            paidOn: payload.paidOn,
-          },
-          serials: data.serials || (data.attendees || []).map((a: any) => a.serial).filter(Boolean),
-        };
+        // Optionally stash receipt meta (helps your receipt page UI)
         try {
+          const receiptMeta = {
+            buyer: pending.buyer,
+            ticket: pending.ticket,
+            attendees: saveResp.attendees,
+            gateway: {
+              transactionReference: reference,
+              paymentReference: reference,
+              amountPaid: Number(verifyResp.amountPaid || pending.ticket.price),
+              paidOn: verifyResp.paidOn,
+            },
+            serials: saveResp.serials,
+          };
           sessionStorage.setItem("receipt_meta", JSON.stringify(receiptMeta));
         } catch {}
 
-        const fallbackUrl = `/receipt?ref=${encodeURIComponent(
-          payload.paymentReference
-        )}&txref=${encodeURIComponent(payload.transactionReference)}&amount=${payload.amountPaid}&seats=${
-          base.ticket?.seats || 1
-        }`;
-
-        window.location.replace(data.receiptUrl || fallbackUrl);
-      } catch (e) {
+        // Redirect to your receipt page (server also returned a URL)
+        const to = saveResp.receiptUrl ||
+          `/receipt?ref=${encodeURIComponent(reference)}&txref=${encodeURIComponent(reference)}&amount=${Number(pending.ticket.price)}&seats=${pending.ticket.seats}`;
+        window.location.replace(to);
+      } catch (e: any) {
         console.error(e);
-        setErr("Could not finalize payment. Please check your email for a receipt or contact support.");
+        setError(e?.message || "Something went wrong.");
+        // As a fallback, go home after a bit
+        setTimeout(() => router.push("/"), 4000);
       }
-    })();
-  }, [payload, params, router]);
+    };
+
+    run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white">
-      <div className="text-center text-sm text-gray-700">
-        {err ? err : "Finalizing your payment…"}
+    <div className="min-h-[60vh] flex items-center justify-center">
+      <div className="text-center space-y-2">
+        <div className="animate-spin h-8 w-8 rounded-full border-2 border-gray-300 border-t-gray-700 mx-auto" />
+        <p className="text-sm text-gray-600">
+          {error ? error : "Finalizing your payment..."}
+        </p>
       </div>
     </div>
-  );
-}
-
-export default function PaymentReturnPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-white">
-          <div className="text-center text-sm text-gray-700">Loading…</div>
-        </div>
-      }
-    >
-      <PaymentReturnInner />
-    </Suspense>
   );
 }

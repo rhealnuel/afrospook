@@ -14,7 +14,7 @@ const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
 const SMTP_USER = process.env.SMTP_USER as string;
 const SMTP_PASS = process.env.SMTP_PASS as string;
 
-const APP_BASE_URL = process.env.APP_BASE_URL || "http://localhost:3001";
+const APP_BASE_URL = process.env.APP_BASE_URL || "http://localhost:3000";
 
 // Event meta
 const EVENT_TIME = "12:00 PM";
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
           customerEmail,
           paidOn: paidOn ? new Date(paidOn) : new Date(),
           ticket: ticket ? { ...ticket, seats } : { name: "AfroSpook 2025 Ticket", seats },
-          attendees: enrichedAttendees,  // <-- the only place serials live
+          attendees: enrichedAttendees, // <-- the only place serials live
           raw,
         });
         break; // success
@@ -119,56 +119,38 @@ export async function POST(req: NextRequest) {
     const transporter = nodemailer.createTransport({
       host: SMTP_HOST,
       port: SMTP_PORT,
+      secure: SMTP_PORT === 465, // 465 = SSL/TLS, 587 = STARTTLS
       auth: { user: SMTP_USER, pass: SMTP_PASS },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 10000,
     });
 
     const formattedDate = new Date(paidOn || Date.now()).toLocaleString();
 
     // Buyer email (summary of all attendees)
-    const rowsHTML = enrichedAttendees
-      .map(
-        (a) => `
-        <tr>
-          <td style="padding:8px 6px;border-bottom:1px solid #eee;">${a.name}</td>
-          <td style="padding:8px 6px;border-bottom:1px solid #eee;color:#6b7280;">${a.email || "—"}</td>
-          <td style="padding:8px 6px;border-bottom:1px solid #eee;">${a.ticketName}</td>
-          <td style="padding:8px 6px;border-bottom:1px solid #eee;font-family:monospace;font-weight:600;">${a.serial}</td>
-        </tr>`
-      )
-      .join("");
-
-   const buyerEmailHTML = `
+    const buyerEmailHTML = `
 <div style="min-height:100vh;background:linear-gradient(135deg, #fff7ed 0%, #ffffff 50%, #f7fee7 100%);padding:32px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#111827;font-size:14px;">
   <div style="max-width:576px;margin:0 auto;">
-    
-    <!-- Header -->
     <div style="text-align:center;margin-bottom:24px;">
-      <!-- Success Icon -->
       <div style="width:56px;height:56px;margin:0 auto 12px;background:#ffffff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.1);border:1px solid #e5e7eb;display:flex;align-items:center;justify-content:center;">
         <div style="width:32px;height:32px;background:#B6FF00;border-radius:50%;position:relative;">
           <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:16px;height:16px;">
-            <!-- Checkmark SVG -->
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path d="M20 6L9 17l-5-5" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </div>
         </div>
       </div>
-      
-      <!-- Logo -->
       <div style="width:160px;height:56px;margin:0 auto 8px;background:#000000;border-radius:8px;display:flex;align-items:center;justify-content:center;">
         <img src="${APP_BASE_URL}/afrospook-logo.png" alt="AfroSpook" style="height:40px;width:auto;object-fit:contain;" />
       </div>
-      
       <h1 style="font-size:20px;font-weight:700;margin:0 0 4px;color:#111827;">Payment Successful</h1>
       <p style="font-size:12px;color:#6b7280;margin:0;">Welcome to AfroSpook 2025</p>
     </div>
 
-    <!-- Main Card -->
     <div style="background:linear-gradient(135deg, rgba(251,146,60,0.7) 0%, #ffffff 50%, rgba(182,255,0,0.7) 100%);padding:1px;border-radius:16px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
       <div style="background:#ffffff;border-radius:15px;padding:20px;">
-        
-        <!-- Ticket Info Header -->
         <div style="display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:14px;margin-bottom:12px;">
           <span>${ticket?.name ?? "AfroSpook 2025 Ticket"}</span>
           <span style="display:flex;align-items:center;gap:4px;">
@@ -180,7 +162,6 @@ export async function POST(req: NextRequest) {
           </span>
         </div>
 
-        <!-- Compact Info Grid -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 0;font-size:12px;margin-bottom:12px;">
           <div style="display:flex;align-items:center;gap:4px;color:#6b7280;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="color:#FF3B00;">
@@ -204,7 +185,6 @@ export async function POST(req: NextRequest) {
           <div style="grid-column:span 2;font-weight:500;color:#1f2937;">${customerName}</div>
         </div>
 
-        <!-- Event Location -->
         <div style="display:flex;align-items:center;gap:4px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:8px;font-size:12px;color:#374151;margin-bottom:16px;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="color:#FF3B00;">
             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke="#FF3B00" stroke-width="2" fill="none"/>
@@ -213,20 +193,22 @@ export async function POST(req: NextRequest) {
           ${EVENT_VENUE}
         </div>
 
-        <!-- Serials Section -->
         <div style="margin-bottom:12px;">
-          <p style="font-size:12px;color:#6b7280;margin:0 0 4px;">${seats > 1 ? 'Serial Codes' : 'Serial Code'}</p>
-          <div style="display:grid;${seats > 1 ? 'grid-template-columns:1fr 1fr;' : ''}gap:8px;">
-            ${enrichedAttendees.map(a => `
+          <p style="font-size:12px;color:#6b7280;margin:0 0 4px;">${seats > 1 ? "Serial Codes" : "Serial Code"}</p>
+          <div style="display:grid;${seats > 1 ? "grid-template-columns:1fr 1fr;" : ""}gap:8px;">
+            ${enrichedAttendees
+              .map(
+                (a) => `
               <div style="display:flex;align-items:center;justify-content:space-between;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:8px;">
                 <code style="background:#ffffff;border:1px solid #e5e7eb;border-radius:4px;padding:2px 4px;font-family:monospace;font-size:11px;">${a.serial}</code>
                 <div style="font-size:10px;color:#6b7280;">${a.name}</div>
               </div>
-            `).join('')}
+            `
+              )
+              .join("")}
           </div>
         </div>
 
-        <!-- Notice -->
         <div style="display:flex;align-items:flex-start;gap:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:8px;font-size:11px;color:#374151;margin-bottom:16px;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="color:#B6FF00;margin-top:1px;">
             <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="#B6FF00" stroke-width="2" fill="none"/>
@@ -235,7 +217,6 @@ export async function POST(req: NextRequest) {
           <p style="margin:0;">Receipt has been sent to your email.</p>
         </div>
 
-        <!-- CTA Button -->
         <div style="text-align:center;">
           <a href="${receiptBaseUrl}" style="display:inline-flex;align-items:center;gap:4px;background:linear-gradient(90deg, #FF3B00 0%, #B6FF00 100%);color:#ffffff;text-decoration:none;font-weight:600;font-size:12px;padding:6px 12px;border-radius:12px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
@@ -252,33 +233,50 @@ export async function POST(req: NextRequest) {
       </div>
     </div>
 
-    <!-- Footer -->
     <p style="text-align:center;font-size:10px;color:#6b7280;margin:12px 0 0;">
       AfroSpook 2025 • Lagos Cultural Center
     </p>
   </div>
 </div>`;
 
-    await transporter.sendMail({
-      from: `"AfroSpook Tickets" <${SMTP_USER}>`,
-      to: customerEmail,
-      subject: "🎟️ Your AfroSpook Ticket Receipt",
-      html: buyerEmailHTML,
-    });
+    // ---------- EMAILS: non-blocking & tolerant ----------
+    let emailStatus: "sent" | "partial" | "skipped" = "sent";
 
-    // Per-attendee emails
-    await Promise.all(
-      enrichedAttendees.map(async (a) => {
-        if (!a.email) return; // skip if no email
-        const receiptUrlForAttendee = `${receiptBaseUrl}&serial=${encodeURIComponent(a.serial)}`;
+    // If SMTP config is missing, skip emails gracefully
+    if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS || !SMTP_PORT) {
+      emailStatus = "skipped";
+    } else {
+      // verify SMTP reachability; if it fails, skip emails
+      try {
+        await transporter.verify();
+      } catch (e) {
+        console.warn("SMTP verify failed, skipping emails:", e);
+        emailStatus = "skipped";
+      }
 
-        const attendeeHtml = `
+      if (emailStatus !== "skipped") {
+        // Buyer email
+        try {
+          await transporter.sendMail({
+            from: `"AfroSpook Tickets" <${SMTP_USER}>`,
+            to: customerEmail,
+            subject: "🎟️ Your AfroSpook Ticket Receipt",
+            html: buyerEmailHTML,
+          });
+        } catch (e) {
+          console.error("Buyer email failed:", e);
+          emailStatus = "partial";
+        }
+
+        // Per-attendee emails (only those with email)
+        const results = await Promise.allSettled(
+          enrichedAttendees
+            .filter((a) => !!a.email)
+            .map(async (a) => {
+              const attendeeHtml = `
 <div style="min-height:100vh;background:linear-gradient(135deg, #fff7ed 0%, #ffffff 50%, #f7fee7 100%);padding:32px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#111827;font-size:14px;">
   <div style="max-width:576px;margin:0 auto;">
-    
-    <!-- Header -->
     <div style="text-align:center;margin-bottom:24px;">
-      <!-- Success Icon -->
       <div style="width:56px;height:56px;margin:0 auto 12px;background:#ffffff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.1);border:1px solid #e5e7eb;display:flex;align-items:center;justify-content:center;">
         <div style="width:32px;height:32px;background:#B6FF00;border-radius:50%;position:relative;">
           <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:16px;height:16px;">
@@ -288,27 +286,20 @@ export async function POST(req: NextRequest) {
           </div>
         </div>
       </div>
-      
-      <!-- Logo -->
       <div style="width:160px;height:56px;margin:0 auto 8px;background:#000000;border-radius:8px;display:flex;align-items:center;justify-content:center;">
         <img src="${APP_BASE_URL}/afrospook-logo.png" alt="AfroSpook" style="height:40px;width:auto;object-fit:contain;" />
       </div>
-      
       <h1 style="font-size:20px;font-weight:700;margin:0 0 4px;color:#111827;">Your Ticket</h1>
       <p style="font-size:12px;color:#6b7280;margin:0;">AfroSpook 2025</p>
     </div>
 
-    <!-- Main Card -->
     <div style="background:linear-gradient(135deg, rgba(251,146,60,0.7) 0%, #ffffff 50%, rgba(182,255,0,0.7) 100%);padding:1px;border-radius:16px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
       <div style="background:#ffffff;border-radius:15px;padding:20px;">
-        
-        <!-- Personal Greeting -->
         <div style="margin-bottom:16px;">
-          <p style="font-size:14px;margin:0 0 4px;">Hi <strong>${a.name || 'Guest'}</strong>,</p>
+          <p style="font-size:14px;margin:0 0 4px;">Hi <strong>${a.name || "Guest"}</strong>,</p>
           <p style="font-size:12px;color:#6b7280;margin:0;">Here's your ticket for AfroSpook 2025!</p>
         </div>
 
-        <!-- Ticket Info -->
         <div style="display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:14px;margin-bottom:12px;">
           <span>${a.ticketName}</span>
           <span style="display:flex;align-items:center;gap:4px;">
@@ -320,13 +311,11 @@ export async function POST(req: NextRequest) {
           </span>
         </div>
 
-        <!-- Serial Code Highlight -->
         <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px;text-align:center;margin-bottom:12px;">
           <p style="font-size:12px;color:#6b7280;margin:0 0 4px;">Your Serial Code</p>
           <code style="background:#ffffff;border:1px solid #e5e7eb;border-radius:6px;padding:6px 12px;font-family:monospace;font-size:16px;font-weight:700;color:#1f2937;">${a.serial}</code>
         </div>
 
-        <!-- Event Details -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 0;font-size:12px;margin-bottom:12px;">
           <div style="display:flex;align-items:center;gap:4px;color:#6b7280;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="color:#FF3B00;">
@@ -335,7 +324,7 @@ export async function POST(req: NextRequest) {
               <line x1="8" y1="2" x2="8" y2="6" stroke="#FF3B00" stroke-width="2"/>
               <line x1="3" y1="10" x2="21" y2="10" stroke="#FF3B00" stroke-width="2"/>
             </svg>
-            ${formattedDate}
+            ${new Date(paidOn || Date.now()).toLocaleString()}
           </div>
           <div style="display:flex;align-items:center;gap:4px;color:#6b7280;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="color:#B6FF00;">
@@ -347,7 +336,6 @@ export async function POST(req: NextRequest) {
           <div style="grid-column:span 2;color:#6b7280;font-size:11px;">Ref: ${paymentReference}</div>
         </div>
 
-        <!-- Event Location -->
         <div style="display:flex;align-items:center;gap:4px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:8px;font-size:12px;color:#374151;margin-bottom:16px;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="color:#FF3B00;">
             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke="#FF3B00" stroke-width="2" fill="none"/>
@@ -356,7 +344,6 @@ export async function POST(req: NextRequest) {
           ${EVENT_VENUE}
         </div>
 
-        <!-- CTA Button -->
         <div style="text-align:center;">
           <a href="${receiptBaseUrl}&serial=${encodeURIComponent(a.serial)}" style="display:inline-flex;align-items:center;gap:4px;background:linear-gradient(90deg, #FF3B00 0%, #B6FF00 100%);color:#ffffff;text-decoration:none;font-weight:600;font-size:12px;padding:6px 12px;border-radius:12px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
@@ -373,29 +360,34 @@ export async function POST(req: NextRequest) {
       </div>
     </div>
 
-    <!-- Footer -->
     <p style="text-align:center;font-size:10px;color:#6b7280;margin:12px 0 0;">
       AfroSpook 2025 • Lagos Cultural Center
     </p>
   </div>
 </div>`;
+              await transporter.sendMail({
+                from: `"AfroSpook Tickets" <${SMTP_USER}>`,
+                to: a.email!,
+                subject: "🎟️ Your AfroSpook Ticket (Attendee Copy)",
+                html: attendeeHtml,
+              });
+            })
+        );
 
-        await transporter.sendMail({
-          from: `"AfroSpook Tickets" <${SMTP_USER}>`,
-          to: a.email,
-          subject: "🎟️ Your AfroSpook Ticket (Attendee Copy)",
-          html: attendeeHtml,
-        });
-      })
-    );
+        if (results.some((r) => r.status === "rejected")) {
+          emailStatus = "partial";
+        }
+      }
+    }
 
+    // ✅ Always return success here (emails shouldn't block the flow)
     return NextResponse.json({
       success: true,
       id: doc?._id,
-      // No DB serials array — but returning this is handy for client redirect/UX
       serials: enrichedAttendees.map((a) => a.serial),
       attendees: enrichedAttendees,
       receiptUrl: receiptBaseUrl,
+      emailStatus,
     });
   } catch (err) {
     console.error("Save Payment API Error:", err);

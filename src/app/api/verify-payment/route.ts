@@ -17,8 +17,8 @@ const SMTP_PASS = process.env.SMTP_PASS as string;
 const APP_BASE_URL = process.env.APP_BASE_URL || "http://localhost:3000";
 
 // Event meta
-const EVENT_TIME = "12:00 PM";
-const EVENT_VENUE = "Elegushi Beach, Lagos";
+const EVENT_TIME = "7:00 PM";
+const EVENT_VENUE = "Image Garden, Benin City";
 
 /* ---------- Helpers ---------- */
 // Generate a unique 6-char serial (A–Z + 2–9, excluding 0/1/O/I)

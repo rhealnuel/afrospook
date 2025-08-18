@@ -153,7 +153,7 @@ function SuccessPage() {
             {/* Event address (always visible) */}
             <div className="mt-3 flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-700">
               <MapPin className="h-3.5 w-3.5" style={{ color: ORANGE }} />
-              Elegushi Beach, Lagos
+              Image Garden, Benin City - Friday, 31st October 2025
             </div>
 
             {/* Attendees + serials */}
@@ -223,7 +223,7 @@ function SuccessPage() {
 
         {/* Small footer */}
         <p className="mt-3 text-center text-[10px] text-gray-500">
-          AfroSpook 2025 • Lagos Cultural Center
+          AfroSpook 2025 • Image Garden, Benin City
         </p>
       </div>
     </div>

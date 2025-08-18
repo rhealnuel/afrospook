@@ -22,33 +22,46 @@ type TicketType = {
 const TICKETS: TicketType[] = [
   {
     id: 1,
-    name: "Regular",
+    name: "Early Bird",
     price: 5000,
-    description: "Standard event access",
+    description: "Discounted entry for early buyers.",
     features: ["Event Entry", "Digital Program", "Access to Main Venues"],
     seats: 1,
     gradient: "from-orange-100 to-lime-100",
   },
   {
     id: 2,
-    name: "Early Bird VIP (4)",
-    price: 120000,
-    description: "VIP table for four (limited-time pricing).",
-    features: [
-      "4 VIP Tickets",
-      "Reserved Table for 4",
-      "1 Bottle Jameson",
-      "Priority Entry",
-    ],
-    popular: true,
-    seats: 4,
+    name: "Standard",
+    price: 7000,
+    description: "General admission for one.",
+    features: ["Event Entry", "Digital Program", "Access to Main Venues"],
+    seats: 1,
     gradient: "from-lime-100 to-orange-100",
   },
   {
     id: 3,
-    name: "Standard VIP (4)",
-    price: 150000,
-    description: "Full VIP table for four.",
+    name: "Couple",
+    price: 12000,
+    description: "Ticket bundle for two people.",
+    features: ["2 Tickets", "Event Entry", "Digital Program", "Access to Main Venues"],
+    seats: 2,
+     popular: true,
+    gradient: "from-orange-50 to-lime-50",
+  },
+  {
+    id: 4,
+    name: "Group of 4",
+    price: 20000,
+    description: "Discounted group package for four friends.",
+    features: ["4 Tickets", "Event Entry", "Digital Program", "Access to Main Venues"],
+    seats: 4,
+    gradient: "from-lime-50 to-orange-50",
+  },
+  {
+    id: 5,
+    name: "VIP Group of 4",
+    price: 120000,
+    description: "Exclusive VIP table experience for four.",
     features: [
       "4 VIP Tickets",
       "Reserved Table for 4",
@@ -56,8 +69,9 @@ const TICKETS: TicketType[] = [
       "Complimentary Shisha",
       "Priority Entry",
     ],
+   
     seats: 4,
-    gradient: "from-orange-50 to-lime-50",
+    gradient: "from-orange-100 to-lime-200",
   },
 ];
 
@@ -121,7 +135,7 @@ export default function AfroSpookTicketing() {
             <div className="text-center lg:text-left">
               <div className="inline-flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-full px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm border border-gray-200 mb-6">
                 <div className="h-2 w-2 bg-gradient-to-r from-orange-500 to-lime-500 rounded-full animate-pulse"></div>
-                March 15–16, 2025 • Lagos Cultural Center
+                October 31, 2025 • Image Garden Benin-city
               </div>
               
               <h1 className="text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
@@ -145,7 +159,7 @@ export default function AfroSpookTicketing() {
                     </div>
                     <div className="text-left">
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</p>
-                      <p className="text-sm font-bold text-gray-900">March 15-16</p>
+                      <p className="text-sm font-bold text-gray-900">Friday, 31st October 2025</p>
                     </div>
                   </div>
                 </div>
@@ -156,7 +170,7 @@ export default function AfroSpookTicketing() {
                     </div>
                     <div className="text-left">
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Venue</p>
-                      <p className="text-sm font-bold text-gray-900">Lagos Center</p>
+                      <p className="text-sm font-bold text-gray-900">Image Garden, Benin City</p>
                     </div>
                   </div>
                 </div>
@@ -167,7 +181,7 @@ export default function AfroSpookTicketing() {
                     </div>
                     <div className="text-left">
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Time</p>
-                      <p className="text-sm font-bold text-gray-900">6PM - 2AM</p>
+                      <p className="text-sm font-bold text-gray-900">7PM - Dawn</p>
                     </div>
                   </div>
                 </div>
@@ -262,35 +276,119 @@ export default function AfroSpookTicketing() {
           </div>
 
           {/* Additional Info */}
-          <div className="mt-16 bg-white/90 backdrop-blur-sm rounded-3xl border border-gray-200 p-8 shadow-lg">
-            <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">Event Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div>
-                <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <div className="h-3 w-3 bg-gradient-to-r from-orange-500 to-lime-500 rounded-full"></div>
-                  Ticket Policy
-                </h4>
-                <ul className="space-y-2 text-gray-700">
-                  <li>• All sales are final - no refunds</li>
-                  <li>• Tickets are transferable up to 48 hours before event</li>
-                  <li>• Valid ID required for entry</li>
-                  <li>• Age restriction: 18+ only</li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <div className="h-3 w-3 bg-gradient-to-r from-lime-500 to-orange-500 rounded-full"></div>
-                  Event Details
-                </h4>
-                <ul className="space-y-2 text-gray-700">
-                  <li>• Doors open at 5:30 PM</li>
-                  <li>• Parking available on-site</li>
-                  <li>• Food and beverages available for purchase</li>
-                  <li>• Photography permitted in designated areas</li>
-                </ul>
-              </div>
-            </div>
+        <div className="mt-16 bg-white/90 backdrop-blur-sm rounded-3xl border border-gray-200 p-8 shadow-lg">
+  <h3 className="text-2xl font-bold text-gray-900 mb-10 text-center">Event Information</h3>
+  <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+    {/* Left Column - Event Details */}
+    <div className="space-y-10">
+      {/* Event Details */}
+      <div>
+        <h4 className="font-bold text-gray-900 mb-6 flex items-center gap-2 text-lg">
+          <div className="h-3 w-3 bg-gradient-to-r from-orange-500 to-lime-500 rounded-full"></div>
+          Event Details
+        </h4>
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-gray-700">
+          <div>
+            <dt className="font-semibold">Venue:</dt>
+            <dd>Image Garden, Benin City, Edo State, Nigeria</dd>
           </div>
+          <div>
+            <dt className="font-semibold">Time:</dt>
+            <dd>Gates open 2:00 PM | Event starts 7:00 PM till dawn</dd>
+          </div>
+          <div className="sm:col-span-2">
+            <dt className="font-semibold">Dress Code:</dt>
+            <dd>Afro-mystic, Carnival, or Creative Costume (Come to slay, not to blend)</dd>
+          </div>
+        </dl>
+      </div>
+
+      {/* Highlights */}
+      <div>
+        <h4 className="font-bold text-gray-900 mb-6 flex items-center gap-2 text-lg">
+          <div className="h-3 w-3 bg-gradient-to-r from-lime-500 to-orange-500 rounded-full"></div>
+          Highlights
+        </h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-gray-700">
+          <div className="p-3 bg-gray-50 rounded-xl shadow-sm">🎭 Parade of Spirits & Masks</div>
+          <div className="p-3 bg-gray-50 rounded-xl shadow-sm">🔥 High-Energy Rave Arena</div>
+          <div className="p-3 bg-gray-50 rounded-xl shadow-sm">🌙 Mystic Chill Zones</div>
+          <div className="p-3 bg-gray-50 rounded-xl shadow-sm">✨ Afro-mysticism Performances</div>
+          <div className="p-3 bg-gray-50 rounded-xl shadow-sm">🎶 Live DJs & Art Installations</div>
+        </div>
+      </div>
+    </div>
+
+    {/* Right Column - Ticket Policy */}
+    <div>
+      <h4 className="font-bold text-gray-900 mb-6 flex items-center gap-2 text-lg">
+        <div className="h-3 w-3 bg-gradient-to-r from-orange-500 to-lime-500 rounded-full"></div>
+        AfroSpook Ticket Policy
+      </h4>
+      <div className="space-y-6">
+        {[
+          {
+            title: "1. Ticket Purchase & Entry",
+            items: [
+              "All sales are final — no refunds, exchanges, or cancellations.",
+              "Tickets are valid for one entry only; re-entry is not allowed.",
+              "Entry is only granted with a valid ticket (digital or printed).",
+              "Lost, stolen, or damaged tickets will not be reissued.",
+            ],
+          },
+          {
+            title: "2. Age Restriction",
+            items: ["This event is 18+ only."],
+          },
+          {
+            title: "3. Prohibited Items",
+            items: [
+              "Weapons, illegal substances, fireworks, glass bottles, and outside food/drinks are strictly prohibited.",
+              "Event security reserves the right to conduct bag searches at the gate.",
+            ],
+          },
+          {
+            title: "4. Safety & Behavior",
+            items: [
+              "Respect fellow attendees, staff, and performers — no harassment or disorderly conduct.",
+              "Anyone found engaging in violence, theft, or unsafe behavior will be removed without refund.",
+              "AfroSpook reserves the right to refuse admission or remove anyone at its discretion.",
+            ],
+          },
+          {
+            title: "5. Photography & Media",
+            items: [
+              "By attending, you consent to being filmed or photographed for event promotion and media use.",
+              "No professional photography or videography equipment without prior approval.",
+            ],
+          },
+          {
+            title: "6. Force Majeure",
+            items: [
+              "AfroSpook is not responsible for delays, rescheduling, or cancellation due to weather, government regulations, or circumstances beyond our control.",
+            ],
+          },
+          {
+            title: "7. Acceptance",
+            items: [
+              "Purchase or possession of a ticket signifies acceptance of this policy and all event rules.",
+            ],
+          },
+        ].map((section, i) => (
+          <div key={i} className="bg-gray-50 rounded-xl p-4 shadow-sm">
+            <p className="font-semibold text-gray-900 mb-2">{section.title}</p>
+            <ul className="space-y-1 pl-4 text-gray-700">
+              {section.items.map((item, j) => (
+                <li key={j}>• {item}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+</div>
+
         </div>
       </section>
 

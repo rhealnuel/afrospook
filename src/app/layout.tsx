@@ -56,7 +56,7 @@ export const metadata: Metadata = {
     description:
       "The Afro-mystic carnival rave in Benin City, Edo State. Spirits, masks, DJs, art, and endless vibes till dawn.",
     images: ["/afrospook-logo.png"],
-    creator: "@afrospook", // replace if you have an official Twitter handle
+    creator: "@afro_spook", // replace if you have an official Twitter handle
   },
   icons: {
     icon: "/afrospook-logo.png",

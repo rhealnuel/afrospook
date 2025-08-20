@@ -17,39 +17,32 @@ type TicketType = {
   popular?: boolean;
   seats: number;
   gradient: string;
+  oldPrice?: number
 };
 
 const TICKETS: TicketType[] = [
   {
     id: 1,
-    name: "Early Bird",
+    name: "Early Bird / Standard",
     price: 5000,
-    description: "Discounted entry for early buyers.",
+    oldPrice: 7000, // show slashed price
+    description: "Discounted general admission for one.",
     features: ["Event Entry", "Digital Program", "Access to Main Venues"],
     seats: 1,
     gradient: "from-orange-100 to-lime-100",
   },
   {
     id: 2,
-    name: "Standard",
-    price: 7000,
-    description: "General admission for one.",
-    features: ["Event Entry", "Digital Program", "Access to Main Venues"],
-    seats: 1,
-    gradient: "from-lime-100 to-orange-100",
-  },
-  {
-    id: 3,
     name: "Couple",
     price: 12000,
     description: "Ticket bundle for two people.",
     features: ["2 Tickets", "Event Entry", "Digital Program", "Access to Main Venues"],
     seats: 2,
-     popular: true,
+    popular: true,
     gradient: "from-orange-50 to-lime-50",
   },
   {
-    id: 4,
+    id: 3,
     name: "Group of 4",
     price: 20000,
     description: "Discounted group package for four friends.",
@@ -58,7 +51,7 @@ const TICKETS: TicketType[] = [
     gradient: "from-lime-50 to-orange-50",
   },
   {
-    id: 5,
+    id: 4,
     name: "VIP Group of 4",
     price: 120000,
     description: "Exclusive VIP table experience for four.",
@@ -69,12 +62,10 @@ const TICKETS: TicketType[] = [
       "Complimentary Shisha",
       "Priority Entry",
     ],
-   
     seats: 4,
     gradient: "from-orange-100 to-lime-200",
   },
 ];
-
 
 // Logo Component
 interface LogoProps {
@@ -181,7 +172,7 @@ export default function AfroSpookTicketing() {
                     </div>
                     <div className="text-left">
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Time</p>
-                      <p className="text-sm font-bold text-gray-900">7PM - Dawn</p>
+                      <p className="text-sm font-bold text-gray-900">Gate open 2pm | Rave 7pm</p>
                     </div>
                   </div>
                 </div>
@@ -215,12 +206,9 @@ export default function AfroSpookTicketing() {
             <p className="text-xl text-gray-600">Select the perfect ticket for an unforgettable celebration</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {TICKETS.map((ticket) => (
-              <div
-                key={ticket.id}
-                className="relative group"
-              >
+              <div key={ticket.id} className="relative group">
                 {ticket.popular && (
                   <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
                     <div className="bg-gradient-to-r from-orange-500 to-lime-500 text-white text-sm font-bold px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
@@ -237,10 +225,13 @@ export default function AfroSpookTicketing() {
                     <div className="text-center mb-6">
                       <h3 className="text-2xl font-bold text-gray-900 mb-2">{ticket.name}</h3>
                       <p className="text-gray-700 mb-4">{ticket.description}</p>
-                      <div className="text-4xl font-bold text-gray-900 mb-2">
+                      <div className="text-4xl font-bold text-gray-900 mb-1">
                         ₦{ticket.price.toLocaleString()}
                       </div>
-                      <div className="flex items-center justify-center gap-2 text-gray-600">
+                      {ticket.oldPrice && (
+                        <div className="text-lg text-gray-500 line-through">₦{ticket.oldPrice.toLocaleString()}</div>
+                      )}
+                      <div className="flex items-center justify-center gap-2 text-gray-600 mt-2">
                         <Users className="h-4 w-4" />
                         <span className="text-sm font-medium">{ticket.seats} {ticket.seats === 1 ? 'person' : 'people'}</span>
                       </div>

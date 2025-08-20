@@ -3,18 +3,17 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import Payment from "@/models/Transactions";
 
 /* ---------- Config ---------- */
 const MONGODB_URI = process.env.MONGODB_URI as string;
-
-const SMTP_HOST = process.env.SMTP_HOST as string;
-const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
-const SMTP_USER = process.env.SMTP_USER as string;
-const SMTP_PASS = process.env.SMTP_PASS as string;
-
+const RESEND_API_KEY = process.env.RESEND_API_KEY as string;
+const FROM_EMAIL = process.env.FROM_EMAIL || "tickets@afrospook.com";
 const APP_BASE_URL = process.env.APP_BASE_URL || "http://localhost:3000";
+
+// Initialize Resend
+const resend = new Resend(RESEND_API_KEY);
 
 // Event meta
 const EVENT_TIME = "7:00 PM";
@@ -115,17 +114,6 @@ export async function POST(req: NextRequest) {
       paymentReference
     )}&txref=${encodeURIComponent(transactionReference)}&amount=${Number(amountPaid)}&seats=${seats}`;
 
-    /* ---------- Email transport ---------- */
-    const transporter = nodemailer.createTransport({
-      host: SMTP_HOST,
-      port: SMTP_PORT,
-      secure: SMTP_PORT === 465, // 465 = SSL/TLS, 587 = STARTTLS
-      auth: { user: SMTP_USER, pass: SMTP_PASS },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 10000,
-    });
-
     const formattedDate = new Date(paidOn || Date.now()).toLocaleString();
 
     // Buyer email (summary of all attendees)
@@ -142,9 +130,15 @@ export async function POST(req: NextRequest) {
           </div>
         </div>
       </div>
-      <div style="width:160px;height:56px;margin:0 auto 8px;background:#000000;border-radius:8px;display:flex;align-items:center;justify-content:center;">
-        <img src="${APP_BASE_URL}/afrospook-logo.png" alt="AfroSpook" style="height:40px;width:auto;object-fit:contain;" />
-      </div>
+      <div style="width:160px;height:56px;margin:0 auto 8px;background:#000000;border-radius:8px;">
+  <table style="width:100%;height:100%;border-collapse:collapse;">
+    <tr>
+      <td style="text-align:center;vertical-align:middle;">
+        <img src="${APP_BASE_URL}/afrospook-logo.png" alt="AfroSpook" style="height:40px;width:auto;object-fit:contain;display:block;margin:0 auto;" />
+      </td>
+    </tr>
+  </table>
+</div>
       <h1 style="font-size:20px;font-weight:700;margin:0 0 4px;color:#111827;">Payment Successful</h1>
       <p style="font-size:12px;color:#6b7280;margin:0;">Welcome to AfroSpook 2025</p>
     </div>
@@ -239,41 +233,32 @@ export async function POST(req: NextRequest) {
   </div>
 </div>`;
 
-    // ---------- EMAILS: non-blocking & tolerant ----------
+    /* ---------- Email sending with Resend ---------- */
     let emailStatus: "sent" | "partial" | "skipped" = "sent";
 
-    // If SMTP config is missing, skip emails gracefully
-    if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS || !SMTP_PORT) {
+    // If Resend config is missing, skip emails gracefully
+    if (!RESEND_API_KEY || !FROM_EMAIL) {
       emailStatus = "skipped";
+      console.warn("Resend API key or FROM_EMAIL missing, skipping emails");
     } else {
-      // verify SMTP reachability; if it fails, skip emails
+      // Buyer email
       try {
-        await transporter.verify();
+        await resend.emails.send({
+          from: `AfroSpook Tickets <${FROM_EMAIL}>`,
+          to: customerEmail,
+          subject: "🎟️ Your AfroSpook Ticket Receipt",
+          html: buyerEmailHTML,
+        });
       } catch (e) {
-        console.warn("SMTP verify failed, skipping emails:", e);
-        emailStatus = "skipped";
+        console.error("Buyer email failed:", e);
+        emailStatus = "partial";
       }
 
-      if (emailStatus !== "skipped") {
-        // Buyer email
-        try {
-          await transporter.sendMail({
-            from: `"AfroSpook Tickets" <${SMTP_USER}>`,
-            to: customerEmail,
-            subject: "🎟️ Your AfroSpook Ticket Receipt",
-            html: buyerEmailHTML,
-          });
-        } catch (e) {
-          console.error("Buyer email failed:", e);
-          emailStatus = "partial";
-        }
-
-        // Per-attendee emails (only those with email)
-        const results = await Promise.allSettled(
-          enrichedAttendees
-            .filter((a) => !!a.email)
-            .map(async (a) => {
-              const attendeeHtml = `
+      // Per-attendee emails (only those with email)
+      const emailPromises = enrichedAttendees
+        .filter((a) => !!a.email)
+        .map(async (a) => {
+          const attendeeHtml = `
 <div style="min-height:100vh;background:linear-gradient(135deg, #fff7ed 0%, #ffffff 50%, #f7fee7 100%);padding:32px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#111827;font-size:14px;">
   <div style="max-width:576px;margin:0 auto;">
     <div style="text-align:center;margin-bottom:24px;">
@@ -286,8 +271,14 @@ export async function POST(req: NextRequest) {
           </div>
         </div>
       </div>
-      <div style="width:160px;height:56px;margin:0 auto 8px;background:#000000;border-radius:8px;display:flex;align-items:center;justify-content:center;">
-        <img src="${APP_BASE_URL}/afrospook-logo.png" alt="AfroSpook" style="height:40px;width:auto;object-fit:contain;" />
+     <div style="width:160px;height:56px;margin:0 auto 8px;background:#000000;border-radius:8px;">
+        <table style="width:100%;height:100%;border-collapse:collapse;">
+          <tr>
+            <td style="text-align:center;vertical-align:middle;">
+              <img src="${APP_BASE_URL}/afrospook-logo.png" alt="AfroSpook" style="height:40px;width:auto;object-fit:contain;display:block;margin:0 auto;" />
+            </td>
+          </tr>
+        </table>
       </div>
       <h1 style="font-size:20px;font-weight:700;margin:0 0 4px;color:#111827;">Your Ticket</h1>
       <p style="font-size:12px;color:#6b7280;margin:0;">AfroSpook 2025</p>
@@ -365,18 +356,23 @@ export async function POST(req: NextRequest) {
     </p>
   </div>
 </div>`;
-              await transporter.sendMail({
-                from: `"AfroSpook Tickets" <${SMTP_USER}>`,
-                to: a.email!,
-                subject: "🎟️ Your AfroSpook Ticket (Attendee Copy)",
-                html: attendeeHtml,
-              });
-            })
-        );
 
-        if (results.some((r) => r.status === "rejected")) {
-          emailStatus = "partial";
-        }
+          try {
+            await resend.emails.send({
+              from: `AfroSpook Tickets <${FROM_EMAIL}>`,
+              to: a.email!,
+              subject: "🎟️ Your AfroSpook Ticket (Attendee Copy)",
+              html: attendeeHtml,
+            });
+          } catch (error) {
+            console.error(`Failed to send email to ${a.email}:`, error);
+            throw error;
+          }
+        });
+
+      const results = await Promise.allSettled(emailPromises);
+      if (results.some((r) => r.status === "rejected")) {
+        emailStatus = "partial";
       }
     }
 

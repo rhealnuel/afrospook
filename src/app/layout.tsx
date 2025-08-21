@@ -59,9 +59,9 @@ export const metadata: Metadata = {
     creator: "@afro_spook", // replace if you have an official Twitter handle
   },
   icons: {
-    icon: "/afrospook-logo.png",
-    shortcut: "/afrospook-logo.png",
-    apple: "/afrospook-logo.png",
+    icon: "/ico.ico",
+    shortcut: "/ico.ico",
+    apple: "/ico.ico",
   },
 };
 

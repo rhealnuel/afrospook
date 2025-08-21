@@ -94,7 +94,7 @@ export default function CheckinPage() {
                     value={serial}
                     onChange={(e) => setSerialRaw(e.target.value)}
                     onKeyDown={onKeyDown}
-                    placeholder="Q5JAAG"
+                    placeholder="Q5J***"
                     maxLength={6}
                     inputMode="text"
                     autoCapitalize="characters"
@@ -118,7 +118,7 @@ export default function CheckinPage() {
                 <div className="flex items-start gap-2 text-[11px] text-gray-600">
                   <Info className="h-3.5 w-3.5" />
                   <p>
-                    Format: 6 chars (A–Z, 0–9). Example: <span className="font-mono">Q5JAAG</span>
+                    Format: 6 chars (A–Z, 0–9). Example: <span className="font-mono">Q5J***</span>
                   </p>
                 </div>
 
@@ -188,7 +188,7 @@ export default function CheckinPage() {
           </div>
         </div>
 
-        <p className="mt-3 text-center text-[11px] text-gray-500">Venue: Elegushi Beach, Lagos</p>
+        <p className="mt-3 text-center text-[11px] text-gray-500">Venue:  Image Garden Benin-city</p>
       </div>
     </div>
   );

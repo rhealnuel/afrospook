@@ -258,8 +258,8 @@ export async function POST(req: NextRequest) {
       const emailPromises = enrichedAttendees
         .filter((a) => !!a.email)
         .map(async (a) => {
-          const attendeeHtml = `
-<div style="min-height:100vh;background:linear-gradient(135deg, #fff7ed 0%, #ffffff 50%, #f7fee7 100%);padding:32px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#111827;font-size:14px;">
+          const attendeeHtml =`
+          <div style="min-height:100vh;background:linear-gradient(135deg, #fff7ed 0%, #ffffff 50%, #f7fee7 100%);padding:32px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#111827;font-size:14px;">
   <div style="max-width:576px;margin:0 auto;">
     <div style="text-align:center;margin-bottom:24px;">
       <div style="width:56px;height:56px;margin:0 auto 12px;background:#ffffff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.1);border:1px solid #e5e7eb;display:flex;align-items:center;justify-content:center;">
@@ -271,15 +271,15 @@ export async function POST(req: NextRequest) {
           </div>
         </div>
       </div>
-     <div style="width:160px;height:56px;margin:0 auto 8px;background:#000000;border-radius:8px;">
-        <table style="width:100%;height:100%;border-collapse:collapse;">
-          <tr>
-            <td style="text-align:center;vertical-align:middle;">
-              <img src="${APP_BASE_URL}/afrospook-logo.png" alt="AfroSpook" style="height:40px;width:auto;object-fit:contain;display:block;margin:0 auto;" />
-            </td>
-          </tr>
-        </table>
-      </div>
+      <div style="width:160px;height:56px;margin:0 auto 8px;background:#000000;border-radius:8px;">
+      <table style="width:100%;height:100%;border-collapse:collapse;">
+        <tr>
+          <td style="text-align:center;vertical-align:middle;">
+            <img src="${APP_BASE_URL}/afrospook-logo.png" alt="AfroSpook" style="height:40px;width:auto;object-fit:contain;display:block;margin:0 auto;" />
+          </td>
+        </tr>
+      </table>
+    </div>
       <h1 style="font-size:20px;font-weight:700;margin:0 0 4px;color:#111827;">Your Ticket</h1>
       <p style="font-size:12px;color:#6b7280;margin:0;">AfroSpook 2025</p>
     </div>
@@ -356,7 +356,6 @@ export async function POST(req: NextRequest) {
     </p>
   </div>
 </div>`;
-
           try {
             await resend.emails.send({
               from: `AfroSpook Tickets <${FROM_EMAIL}>`,

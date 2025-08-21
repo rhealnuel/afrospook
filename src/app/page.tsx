@@ -54,6 +54,7 @@ const TICKETS: TicketType[] = [
     id: 4,
     name: "VIP Group of 4",
     price: 120000,
+    oldPrice: 150000,
     description: "Exclusive VIP table experience for four.",
     features: [
       "4 VIP Tickets",

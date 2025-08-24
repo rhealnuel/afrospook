@@ -59,8 +59,7 @@ const TICKETS: TicketType[] = [
     features: [
       "4 VIP Tickets",
       "Reserved Table for 4",
-      "1 Bottle Jameson",
-      "Complimentary Shisha",
+      "One premium whiskey bottle",
       "Priority Entry",
     ],
     seats: 4,

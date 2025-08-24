@@ -126,6 +126,13 @@ function SuccessPage() {
         </div>
 
         {/* Card */}
+         <div className="mt-3 flex justify-center text-center w-full gap-2 rounded-lg font-bold p-2 text-sm text-red-500">
+              <p>DO NOT SHARE YOUR TICKET</p>
+          </div>
+      <div className="flex justify-center items-center gap-2 rounded-lg text-base flex-lg font-bold p-2  text-gray-700">
+              <Camera className=" h-4 w-4" style={{ color: "red" }} />
+              <p>Take a screenshot of this Receipt</p>
+            </div>
         <div className="rounded-2xl bg-gradient-to-br from-orange-200/70 via-white to-lime-200/70 p-[1px] shadow">
           <div className="rounded-2xl bg-white px-5 py-5">
             {/* Ticket title + amount */}
@@ -136,6 +143,7 @@ function SuccessPage() {
                 ₦{Number(data.amount).toLocaleString()}
               </span>
             </div>
+            
 
             {/* Info compact */}
             <div className="mt-3 grid grid-cols-2 gap-y-1 text-xs">
@@ -205,6 +213,7 @@ function SuccessPage() {
               <Mail className="mt-[1px] h-3.5 w-3.5" style={{ color: LIME }} />
               <p>Receipt has been sent to your email.</p>
             </div>
+           
 
             {/* CTA */}
             <div className="mt-4 text-center">

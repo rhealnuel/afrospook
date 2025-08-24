@@ -131,6 +131,9 @@ function PaymentReturnInner() {
         <p className="text-sm text-gray-600">
           {error ? error : "Finalizing your payment..."}
         </p>
+        <p className="text-sm text-gray-600">
+          {!error && "Please wait while your ticket is generated"}
+        </p>
       </div>
     </div>
   );

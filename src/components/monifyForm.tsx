@@ -100,7 +100,7 @@ export default function PaymentModal({ isOpen, onClose, ticket }: PaymentModalPr
         throw new Error(resp?.error || "Failed to initialize payment");
       }
 
-      onClose();
+      // onClose();
       window.location.href = resp.authorizationUrl;
     } catch (err) {
       console.error("Init/redirect error:", err);
